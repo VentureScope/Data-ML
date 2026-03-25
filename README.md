@@ -1,44 +1,147 @@
-# venterscope-data-scraper
+# VentureScope Data-ML
 
-Jupyter notebook that scrapes job listings from African job boards and saves the results as CSV files. Designed to run on **Google Colab** with no extra dependencies.
+Data collection and preprocessing stack for African job-market intelligence.
 
-## Sources
+This repository includes:
+- A scraper notebook that pulls job postings from Afriwork and Hahu Jobs.
+- A production preprocessing pipeline that transforms raw CSV job rows into structured ML-ready features.
+
+## Repository Structure
+
+```
+Data-ML/
+	afriwork_hahu_scraper.ipynb
+	requirements.txt
+	Job_pipeline/
+		README.md
+		run_preprocessing_pipeline.py
+		data/
+			raw/
+			processed/
+			aggregated/
+		preprocessing/
+			clean_text.py
+			job_id.py
+			date_features.py
+			title_normalization.py
+			description_embedding.py
+			location_extraction.py
+			remote_detection.py
+			job_type_extraction.py
+			education_extraction.py
+			skills_extraction.py
+			semantic_utils.py
+			gemini_key_selector.py
+			unified_preprocessor.py
+		taxonomy/
+			roles.json
+			skills.json
+		tests/
+			test_step1_clean_text.py
+			...
+			test_step10_skills_extraction.py
+			test_pipeline_target_features.py
+```
+
+## 1) Data Collection (Notebook)
+
+Use `afriwork_hahu_scraper.ipynb` to pull fresh source data.
+
+### Sources
 
 | Source | Endpoint | Auth |
 |--------|----------|------|
-| [Afri-work](https://afriworket.com) – all jobs | `https://api.afriworket.com/v1/graphql` | None (anonymous) |
-| [Afri-work](https://afriworket.com) – software/tech jobs | `https://api.afriworket.com/v1/graphql` | None (optional Bearer token) |
-| [Hahu Jobs](https://www.hahu.jobs) – tech sector | `https://graph.aggregator.hahu.jobs/v1/graphql` | None |
+| [Afri-work](https://afriworket.com) - all jobs | `https://api.afriworket.com/v1/graphql` | None (anonymous) |
+| [Afri-work](https://afriworket.com) - software/tech jobs | `https://api.afriworket.com/v1/graphql` | Optional Bearer token |
+| [Hahu Jobs](https://www.hahu.jobs) - tech sector | `https://graph.aggregator.hahu.jobs/v1/graphql` | None |
 
-## Quick start (Google Colab)
+### Quick Start (Colab)
 
-1. Open [Google Colab](https://colab.research.google.com/) and upload **`afriwork_hahu_scraper.ipynb`**, or use *File → Open notebook → GitHub* and paste this repo URL.
-2. Run all cells in order (`Runtime → Run all`).
-3. When prompted, allow Google Drive access so the CSV files are saved to `My Drive/job_data/`.
+1. Open [Google Colab](https://colab.research.google.com/) and load `afriwork_hahu_scraper.ipynb`.
+2. Run all notebook cells in sequence.
+3. Save CSV outputs to Drive or local Colab storage.
 
-> **No Drive?** Set `USE_GOOGLE_DRIVE = False` in Cell 2 – files will be saved to `/content/job_data/` inside the Colab session instead.
+Expected raw outputs:
+- `afriwork_all_jobs_YYYYMMDD_HHMMSS.csv`
+- `afriwork_tech_jobs_YYYYMMDD_HHMMSS.csv`
+- `hahu_tech_jobs_YYYYMMDD_HHMMSS.csv`
 
-## Output files
+## 2) Preprocessing Pipeline (Production)
 
-Each run produces three timestamped CSV files:
+The preprocessing system is implemented under `Job_pipeline/` and runs Step 1 to Step 10 end-to-end.
 
-| File | Contents |
-|------|----------|
-| `afriwork_all_jobs_YYYYMMDD_HHMMSS.csv` | All active Afri-work listings |
-| `afriwork_tech_jobs_YYYYMMDD_HHMMSS.csv` | Afri-work listings filtered to *Software design and Development* |
-| `hahu_tech_jobs_YYYYMMDD_HHMMSS.csv` | Hahu Jobs listings in the IT/Tech sector |
+### Core Techniques
 
-## Optional: authenticated Afri-work requests
+- Deterministic text cleaning, ID generation, and date feature engineering.
+- Semantic embeddings (`sentence-transformers`) for title/skill matching and description vectors.
+- Rule/regex extraction for location, remote mode, job type, and education.
+- Optional Gemini fallbacks when confidence is low.
+- Time-seeded random Gemini key selection through environment configuration.
 
-The software-jobs query works anonymously by default. If you have a personal
-Afri-work account you can paste your Bearer token into the `AFRIWORK_BEARER_TOKEN`
-variable in Cell 5 to use the `job_seeker` role.
+### Target Processed Features
 
-## Running locally
+Each processed row includes:
+- `year_month`
+- `timestamp`
+- `month`
+- `holiday_flag`
+- `job_id`
+- `job_title`
+- `normalized_title`
+- `DescriptionVec`
+- `city`
+- `region`
+- `country`
+- `is_remote`
+- `job_type`
+- `education_level`
+- `skills`
+
+## Installation
+
+From repository root:
 
 ```bash
-pip install requests pandas notebook
-jupyter notebook afriwork_hahu_scraper.ipynb
+pip install -r requirements.txt
+python -m spacy download en_core_web_sm
 ```
 
-Set `USE_GOOGLE_DRIVE = False` when running outside Colab.
+Main dependencies:
+- `requests`
+- `pydantic`
+- `google-genai`
+- `sentence-transformers`
+- `spacy`
+- `holidays`
+- `rapidfuzz`
+
+## Run the Full Preprocessing Pipeline
+
+From repository root:
+
+```bash
+python Job_pipeline/run_preprocessing_pipeline.py
+```
+
+Optional flags:
+
+```bash
+python Job_pipeline/run_preprocessing_pipeline.py --max-rows 100
+python Job_pipeline/run_preprocessing_pipeline.py --enable-gemini-fallback
+python Job_pipeline/run_preprocessing_pipeline.py --raw-dir Job_pipeline/data/raw --processed-dir Job_pipeline/data/processed
+```
+
+Behavior notes:
+- Input files are read from `Job_pipeline/data/raw/`.
+- Output files are written to `Job_pipeline/data/processed/` with the same filenames.
+- Gemini fallback is disabled by default for stable high-throughput batch runs.
+
+## Running Tests
+
+```bash
+python -m unittest discover -s Job_pipeline/tests -v
+```
+
+## Additional Documentation
+
+For full pipeline module-level documentation, see `Job_pipeline/README.md`.
