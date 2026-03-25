@@ -1,0 +1,156 @@
+[
+  {
+    "role_name": "Software Engineer",
+    "category": "Software Development",
+    "description": "Software Engineers are generalist technical problem solvers who design, develop, and maintain cross-functional software systems. They apply rigorous engineering principles across the entire software development lifecycle (SDLC), including requirements gathering, architectural design, implementation, and performance tuning. They write clean, testable code, perform peer code reviews, and solve complex algorithmic problems. Their work ensures that applications are scalable, secure, and maintainable in production environments, often working within Agile or Scrum frameworks to deliver iterative software updates.",
+    "common_alternative_titles": ["Software Developer", "Applications Engineer", "System Development Engineer", "Member of Technical Staff (MTS)", "Software Programmer", "Core Developer"],
+    "typical_skills": ["Java", "C++", "Python", "System Design", "Algorithms", "Git", "Agile", "Unit Testing", "Object-Oriented Programming (OOP)"]
+  },
+  {
+    "role_name": "Backend Developer",
+    "category": "Software Development",
+    "description": "Backend Developers architect and build the server-side logic, database schemas, and application programming interfaces (APIs) that power web and mobile applications. They focus on data persistence, server security, and business logic implementation, ensuring that the behind-the-scenes infrastructure is optimized for speed, reliability, and stability. They handle complex integrations with third-party services, manage server-side authentication, and coordinate the flow of data between the server, databases, and the frontend user interface via REST, GraphQL, or gRPC protocols.",
+    "common_alternative_titles": ["Backend Engineer", "Server-Side Developer", "API Engineer", "Core Engineer", "Java Developer", "Node.js Developer", "Systems Developer"],
+    "typical_skills": ["Node.js", "Go", "Python", "SQL", "NoSQL", "Microservices", "Redis", "REST APIs", "gRPC", "Message Queues", "Django"]
+  },
+  {
+    "role_name": "Frontend Developer",
+    "category": "Software Development",
+    "description": "Frontend Developers specialize in building the client-side of web applications, focusing on the user-facing interface, interactivity, and visual elements. They translate complex design wireframes and UI/UX mockups into functional, performant code while managing application state and ensuring seamless navigation. Their work involves optimizing web performance for low latency, ensuring cross-browser and cross-device compatibility, and implementing responsive design principles to provide a high-quality, accessible user experience.",
+    "common_alternative_titles": ["Frontend Engineer", "UI Developer", "Client-Side Developer", "Web Developer", "React Developer", "JavaScript Developer"],
+    "typical_skills": ["JavaScript", "TypeScript", "React", "Angular", "Vue.js", "HTML5", "CSS3", "SASS", "Webpack", "Vite", "Web Accessibility (A11y)"]
+  },
+  {
+    "role_name": "Full Stack Developer",
+    "category": "Software Development",
+    "description": "Full Stack Developers are versatile engineers capable of working across every layer of the technology stack, from frontend user interfaces to backend databases and server configurations. They bridge the gap between user experience and functionality, often handling end-to-end feature development from conception to deployment. They understand how to design scalable APIs and manage data modeling while also implementing intuitive client-side logic and styling, making them essential for high-velocity teams and rapid prototyping.",
+    "common_alternative_titles": ["Full Stack Engineer", "Generalist Developer", "Product Engineer", "Web Engineer", "End-to-End Developer"],
+    "typical_skills": ["JavaScript", "React", "Node.js", "Python", "SQL", "Docker", "Cloud Services", "HTML/CSS", "API Design", "Full Stack Frameworks"]
+  },
+  {
+    "role_name": "Data Scientist",
+    "category": "Data",
+    "description": "Data Scientists leverage advanced statistical techniques, mathematical modeling, and programming to extract meaningful insights and business value from large, complex datasets. They formulate hypotheses, design experiments, and build predictive models to solve critical strategic challenges. Their role involves extensive data wrangling, exploratory data analysis (EDA), and the communication of complex findings to non-technical stakeholders through data storytelling, visualizations, and executive summaries to drive data-informed decision-making.",
+    "common_alternative_titles": ["Data Science Specialist", "Quantitative Researcher", "Predictive Modeler", "Data Scientist II", "Research Scientist"],
+    "typical_skills": ["Python", "R", "Machine Learning", "Statistics", "Pandas", "Scikit-learn", "SQL", "Tableau", "Statistical Modeling", "Jupyter"]
+  },
+  {
+    "role_name": "Data Analyst",
+    "category": "Data",
+    "description": "Data Analysts interpret data and transform it into actionable information that offers ways to improve business operations and outcomes. They gather information from various sources and interpret patterns and trends using descriptive and diagnostic analytics. Their primary focus is on cleaning data, creating dashboards, and performing ad-hoc reporting to track Key Performance Indicators (KPIs). They provide operational visibility and help business units understand historical performance through clear visualization and structured reporting.",
+    "common_alternative_titles": ["Business Data Analyst", "Reporting Analyst", "Insights Analyst", "BI Analyst", "Marketing Analyst", "Operations Analyst"],
+    "typical_skills": ["SQL", "Excel", "Tableau", "Power BI", "Statistics", "Data Cleaning", "Python", "Google Analytics", "Data Visualization"]
+  },
+  {
+    "role_name": "Machine Learning Engineer",
+    "category": "Data/AI",
+    "description": "Machine Learning Engineers focus on the software engineering aspects of deploying, monitoring, and scaling ML models in production environments. They take prototypes created by data scientists and turn them into robust, high-performance software components. This involves optimizing algorithmic efficiency, managing distributed computing for large-scale training, building inference APIs, and ensuring that models can handle real-time data streams. They bridge the gap between theoretical data science and production-ready software engineering.",
+    "common_alternative_titles": ["ML Engineer", "Applied ML Engineer", "Machine Learning Software Engineer", "ML Systems Engineer"],
+    "typical_skills": ["TensorFlow", "PyTorch", "Python", "C++", "Model Deployment", "ML Algorithms", "Distributed Computing", "CUDA", "Feature Engineering"]
+  },
+  {
+    "role_name": "DevOps Engineer",
+    "category": "DevOps",
+    "description": "DevOps Engineers facilitate the collaboration between development and operations teams to automate and streamline the software delivery process. They build and manage robust Continuous Integration and Continuous Deployment (CI/CD) pipelines, automate infrastructure provisioning using Infrastructure as Code (IaC), and manage containerized application lifecycles. Their primary goal is to increase the speed and frequency of software releases while maintaining high system stability and security through automation, configuration management, and performance monitoring.",
+    "common_alternative_titles": ["Release Engineer", "Automation Engineer", "Systems Engineer", "Build Engineer", "Platform Automation Engineer"],
+    "typical_skills": ["Terraform", "Jenkins", "Ansible", "Kubernetes", "Docker", "Linux", "GitLab CI", "Bash", "CloudFormation", "YAML"]
+  },
+  {
+    "role_name": "Cloud Engineer",
+    "category": "DevOps/Cloud",
+    "description": "Cloud Engineers are responsible for implementing, managing, and optimizing an organization's cloud-based infrastructure and services. They migrate on-premises workloads to cloud environments, configure virtual networks, and manage cloud-native storage and compute resources (AWS, Azure, or GCP). They focus on cloud cost optimization, autoscaling, and security, ensuring that applications leverage the full benefits of cloud technology, such as serverless computing, managed databases, and high-availability clusters.",
+    "common_alternative_titles": ["Cloud Systems Engineer", "AWS Engineer", "Azure Administrator", "GCP Engineer", "Cloud Infrastructure Engineer"],
+    "typical_skills": ["AWS", "Azure", "GCP", "CloudFormation", "Terraform", "Identity Management (IAM)", "VPC Networking", "Serverless", "Cloud Security"]
+  },
+  {
+    "role_name": "Cybersecurity Engineer",
+    "category": "Security",
+    "description": "Cybersecurity Engineers design and implement secure network and system architectures to protect an organization's digital assets against cyber threats and breaches. They perform threat modeling, vulnerability assessments, and penetration testing to identify and remediate security gaps. They integrate automated security tools into the development pipeline (DevSecOps), manage encryption protocols, and ensure compliance with industry standards (like SOC2 or GDPR) to safeguard sensitive data and ensure business continuity.",
+    "common_alternative_titles": ["Security Engineer", "Information Security Engineer", "AppSec Engineer", "SecOps Engineer", "Network Security Engineer"],
+    "typical_skills": ["Network Security", "Penetration Testing", "Cryptography", "OWASP", "Firewalls", "Python", "SIEM", "Incident Response", "Vulnerability Management"]
+  },
+  {
+    "role_name": "Mobile Developer",
+    "category": "Software Development",
+    "description": "Mobile Developers specialize in building and maintaining high-performance applications for mobile platforms such as iOS and Android. They focus on the unique constraints of mobile devices, including limited battery life, varying screen sizes, and intermittent network connectivity. They implement native or cross-platform features, integrate with device hardware (like GPS, Biometrics, and Cameras), and manage the app store submission process while ensuring smooth UI animations and a highly responsive user experience.",
+    "common_alternative_titles": ["iOS Developer", "Android Developer", "Mobile Engineer", "React Native Developer", "Flutter Developer", "Swift Developer"],
+    "typical_skills": ["Swift", "Kotlin", "React Native", "Flutter", "Mobile UI", "Objective-C", "Mobile SDKs", "Xcode", "Android Studio", "API Integration"]
+  },
+  {
+    "role_name": "QA Engineer",
+    "category": "Quality Assurance",
+    "description": "QA Engineers, or Software Development Engineers in Test (SDET), are responsible for ensuring software quality through the design and execution of automated and manual testing strategies. They build sophisticated test frameworks, write comprehensive test scripts for regression, smoke, and functional testing, and execute performance and load tests. They work closely with developers to identify, document, and track software defects, ensuring that every release meets rigorous functional, security, and performance standards.",
+    "common_alternative_titles": ["SDET", "Automation Test Engineer", "Quality Assurance Analyst", "Software Tester", "Test Engineer"],
+    "typical_skills": ["Selenium", "Cypress", "Python", "Java", "API Testing", "JUnit", "Test Automation Frameworks", "LoadRunner", "Cucumber", "Manual Testing"]
+  },
+  {
+    "role_name": "Product Manager",
+    "category": "Product",
+    "description": "Product Managers (PMs) define the vision, strategy, and roadmap for a software product based on user needs, market trends, and business goals. They act as the central hub between engineering, design, marketing, and executive stakeholders. PMs prioritize the product backlog, write detailed user stories, and manage the product lifecycle from discovery to launch. They are responsible for ensuring the engineering team builds the features that deliver the most impact, measuring success through user metrics and business growth.",
+    "common_alternative_titles": ["Technical Product Manager", "Product Owner", "Software PM", "Digital Product Manager"],
+    "typical_skills": ["Product Strategy", "Agile", "Roadmapping", "Market Analysis", "User Stories", "Stakeholder Management", "Jira", "Product Discovery"]
+  },
+  {
+    "role_name": "UI/UX Designer",
+    "category": "Design",
+    "description": "UI/UX Designers are responsible for creating intuitive, accessible, and aesthetically pleasing digital interfaces and experiences. They conduct user research to understand behaviors and pain points, create low-fidelity wireframes and high-fidelity interactive prototypes, and design the final visual components of a product. They bridge the gap between user requirements and technical feasibility, ensuring that software is not only functional but also delightful and easy to use across all platforms and devices.",
+    "common_alternative_titles": ["Product Designer", "User Experience Designer", "Interaction Designer", "Visual Designer", "User Interface Designer"],
+    "typical_skills": ["Figma", "Sketch", "Prototyping", "User Research", "Visual Design", "Design Systems", "Usability Testing", "Adobe XD", "Information Architecture"]
+  },
+  {
+    "role_name": "Database Administrator",
+    "category": "Data",
+    "description": "Database Administrators (DBAs) ensure that an organization's data is stored securely, remains integral, and can be retrieved efficiently. They are responsible for database installation, configuration, capacity planning, and schema design. DBAs manage backup and recovery strategies, handle user access control and permissions, and perform deep performance tuning on complex SQL queries. They monitor system health to prevent downtime and ensure the high availability of critical data assets in relational and non-relational systems.",
+    "common_alternative_titles": ["DBA", "Database Engineer", "SQL Developer", "Database Manager"],
+    "typical_skills": ["PostgreSQL", "MySQL", "Oracle", "SQL Server", "Performance Tuning", "Backup & Recovery", "Database Security", "NoSQL", "Query Optimization"]
+  },
+  {
+    "role_name": "Systems Administrator",
+    "category": "IT Support",
+    "description": "Systems Administrators maintain the core computer systems, servers, and networks of an organization. They manage server hardware, install and update operating systems (Linux/Windows), and perform regular system backups. Their role involves managing internal user accounts, enforcing security policies, and troubleshooting hardware and software issues to ensure that the internal IT infrastructure is reliable, secure, and performant for all employees. They often handle patch management and hardware provisioning.",
+    "common_alternative_titles": ["SysAdmin", "IT Administrator", "Infrastructure Engineer", "Systems Manager", "Server Administrator"],
+    "typical_skills": ["Linux", "Windows Server", "Active Directory", "Virtualization", "Bash", "PowerShell", "System Monitoring", "Hardware Support", "Network Configuration"]
+  },
+  {
+    "role_name": "Network Engineer",
+    "category": "IT Support",
+    "description": "Network Engineers design, implement, and maintain the communication networks within and between organizations. They configure routers, switches, load balancers, and firewalls to ensure high-speed, secure, and reliable data transfer. Their work involves optimizing network performance, troubleshooting complex connectivity issues, and managing advanced network protocols (like BGP or OSPF). They ensure the integrity of the network infrastructure to support global business operations and remote connectivity.",
+    "common_alternative_titles": ["Network Administrator", "Connectivity Engineer", "Network Architect", "Network Systems Engineer"],
+    "typical_skills": ["Cisco", "TCP/IP", "BGP", "VPN", "Load Balancing", "Network Security", "Routing & Switching", "DNS/DHCP", "Wireshark"]
+  },
+  {
+    "role_name": "AI Engineer",
+    "category": "Data/AI",
+    "description": "AI Engineers specialize in building intelligent applications using advanced technologies like Natural Language Processing (NLP), Computer Vision, and Large Language Models (LLMs). They focus on integrating AI capabilities into software products, fine-tuning pre-trained foundation models, and implementing Retrieval-Augmented Generation (RAG) patterns. They work at the intersection of software engineering and artificial intelligence to build autonomous agents, chatbots, and intelligent recommendation systems that understand and generate human-like content.",
+    "common_alternative_titles": ["Artificial Intelligence Engineer", "GenAI Engineer", "NLP Specialist", "Deep Learning Engineer", "AI Developer"],
+    "typical_skills": ["Python", "Hugging Face", "OpenAI API", "LangChain", "Vector Databases", "NLP", "PyTorch", "Prompt Engineering", "Semantic Search"]
+  },
+  {
+    "role_name": "MLOps Engineer",
+    "category": "DevOps/Data",
+    "description": "MLOps Engineers specialize in the operationalization and lifecycle management of machine learning models. They apply DevOps principles to the machine learning workflow, focusing on Continuous Integration, Continuous Delivery, and Continuous Training (CI/CD/CT). They build automated pipelines for model versioning, data lineage, and production monitoring, ensuring that models in production remain accurate and do not suffer from data or concept drift. They manage the infrastructure required for the entire ML stack.",
+    "common_alternative_titles": ["ML Operations Engineer", "Machine Learning Infrastructure Engineer", "AI Platform Engineer", "DataOps Engineer"],
+    "typical_skills": ["Kubeflow", "MLflow", "Docker", "Kubernetes", "AWS SageMaker", "CI/CD", "Prometheus", "Data Pipelines", "Model Monitoring"]
+  },
+  {
+    "role_name": "Embedded Systems Engineer",
+    "category": "Software Development",
+    "description": "Embedded Systems Engineers develop the low-level software and firmware that controls physical hardware devices. They work with microcontrollers and microprocessors in industries like robotics, automotive, medical devices, and IoT. Their work requires a deep understanding of hardware-software interaction, memory management, and real-time processing (RTOS). They write highly optimized code, often in C or C++, to interact directly with hardware registers, sensors, and communication peripherals.",
+    "common_alternative_titles": ["Firmware Engineer", "Embedded Software Engineer", "IoT Developer", "Systems Programmer", "Hardware-Software Engineer"],
+    "typical_skills": ["C", "C++", "RTOS", "Microcontrollers", "Assembly", "Firmware", "Hardware Debugging", "I2C/SPI/UART", "PCB Basics"]
+  },
+  {
+    "role_name": "Site Reliability Engineer",
+    "category": "DevOps",
+    "description": "Site Reliability Engineers (SREs) apply a software engineering mindset to system operations and infrastructure. They focus on creating highly available, reliable, and scalable distributed systems by defining Service Level Objectives (SLOs) and Error Budgets. SREs prioritize automation to eliminate repetitive operational tasks ('toil'), lead incident response and post-mortem analyses, and build tools that bridge the gap between development speed and overall system reliability in massive production environments.",
+    "common_alternative_titles": ["SRE", "Infrastructure Engineer", "Reliability Engineer", "Production Engineer", "Systems Reliability Engineer"],
+    "typical_skills": ["Python", "Go", "Kubernetes", "Observability", "Prometheus", "Incident Management", "Terraform", "Distributed Systems", "Cloud Infrastructure"]
+  },
+  {
+    "role_name": "Other",
+    "category": "General Tech/Miscellaneous",
+    "description": "The Other role serves as a catch-all category for technical and specialized tech-adjacent positions that do not fit into the standard software engineering or data-focused taxonomy. This includes niche roles like GIS Specialists, Game Illustrators, Technical Recruiters, CRM Administrators, or hardware-specific technicians. This category is characterized by highly specific domain knowledge that falls outside the mainstream Software Development Life Cycle (SDLC) or standard cloud/data infrastructure paths.",
+    "common_alternative_titles": ["Miscellaneous Tech", "Niche Specialist", "Technical Consultant", "Non-Standard Technical Role"],
+    "typical_skills": ["Domain-Specific Tools", "Consulting", "Cross-Functional Support", "Technical Knowledge"]
+  }
+]
