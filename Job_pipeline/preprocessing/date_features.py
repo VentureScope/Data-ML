@@ -25,12 +25,16 @@ Notes:
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Dict, Optional, Set
 
 import holidays
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -128,6 +132,7 @@ class DateFeaturesModule:
 
     def transform_date(self, raw_date: Optional[str]) -> Dict[str, Optional[object]]:
         """Extract date features from a date-like string."""
+        logger.debug("transform_date input=%s", raw_date)
         dt = self._parse_datetime(raw_date)
         if dt is None:
             return {

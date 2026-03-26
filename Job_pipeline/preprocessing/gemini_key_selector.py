@@ -8,11 +8,15 @@ Selection strategy (requested behavior):
 
 from __future__ import annotations
 
+import logging
 import os
 import random
 import time
 from pathlib import Path
 from typing import Dict, List
+
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_key_list(raw: str) -> List[str]:
@@ -119,6 +123,7 @@ def get_all_gemini_api_keys() -> List[str]:
         if key and key not in seen:
             seen.add(key)
             deduped.append(key)
+    logger.debug("Discovered %d unique Gemini API keys", len(deduped))
     return deduped
 
 
@@ -126,11 +131,13 @@ def select_random_gemini_api_key() -> str | None:
     """Pick one Gemini API key using time-seeded random index."""
     keys = get_all_gemini_api_keys()
     if not keys:
+        logger.debug("No Gemini API keys available")
         return None
 
     seed = time.time_ns()
     rng = random.Random(seed)
     random_index = rng.randint(0, len(keys) - 1)
+    logger.debug("Selected Gemini API key index=%d out_of=%d", random_index, len(keys))
     return keys[random_index]
 
 

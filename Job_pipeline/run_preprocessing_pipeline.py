@@ -10,9 +10,13 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import List
+
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -44,6 +48,7 @@ def process_csv_file(
 ) -> int:
     """Process one CSV file and return number of processed rows."""
     output_csv.parent.mkdir(parents=True, exist_ok=True)
+    logger.info("Processing file: %s -> %s", input_csv, output_csv)
 
     processed_rows = 0
     source_name = input_csv.stem
@@ -61,8 +66,10 @@ def process_csv_file(
             processed_rows += 1
 
             if max_rows is not None and processed_rows >= max_rows:
+                logger.info("Row limit reached (%d) for file: %s", max_rows, input_csv.name)
                 break
 
+    logger.info("Finished file: %s rows=%d", input_csv.name, processed_rows)
     return processed_rows
 
 
@@ -78,15 +85,24 @@ def run_batch(
     enable_gemini_fallback: bool = False,
 ) -> None:
     """Run preprocessing for all CSV files in raw_dir."""
+    logger.info(
+        "run_batch start raw_dir=%s processed_dir=%s max_rows=%s gemini_fallback=%s",
+        raw_dir,
+        processed_dir,
+        max_rows,
+        enable_gemini_fallback,
+    )
     preprocessor = UnifiedPreprocessor(
         UnifiedPreprocessorConfig(enable_gemini_fallback=enable_gemini_fallback)
     )
     files = list_raw_csv_files(raw_dir)
 
     if not files:
+        logger.warning("No CSV files found in: %s", raw_dir)
         print(f"No CSV files found in: {raw_dir}")
         return
 
+    logger.info("Found %d input files", len(files))
     for input_csv in files:
         output_csv = processed_dir / input_csv.name
         count = process_csv_file(
@@ -96,6 +112,7 @@ def run_batch(
             max_rows=max_rows,
         )
         print(f"Processed {count} rows: {input_csv.name} -> {output_csv}")
+    logger.info("run_batch complete")
 
 
 def parse_args() -> argparse.Namespace:
@@ -127,6 +144,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     """CLI entrypoint."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    )
     args = parse_args()
     raw_dir = Path(args.raw_dir)
     processed_dir = Path(args.processed_dir)

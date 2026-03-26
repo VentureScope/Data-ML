@@ -24,6 +24,7 @@ Notes:
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -52,6 +53,8 @@ class JobIdModule:
     def __init__(self, config: Optional[JobIdConfig] = None):
         self.config = config or JobIdConfig()
         self._validate_config()
+        self.logger = logging.getLogger(__name__)
+        self.logger.debug("JobIdModule initialized: %s", self.config)
 
     def _validate_config(self) -> None:
         if self.config.date_granularity not in {"month", "raw"}:
@@ -135,6 +138,7 @@ class JobIdModule:
     ) -> str:
         """Generate deterministic hash ID from core identity fields."""
         signature = self.build_signature(title, company, date_value, source)
+        self.logger.debug("Generating job_id signature=%s", signature)
         digest = hashlib.new(self.config.hash_algorithm, signature.encode("utf-8")).hexdigest()
         return digest[: self.config.hash_length]
 
@@ -147,6 +151,7 @@ class JobIdModule:
             date_value=record.get(self.config.date_key),
             source=record.get(self.config.source_key),
         )
+        self.logger.info("Generated job_id=%s for title=%s", output[self.config.output_key], record.get(self.config.title_key))
         return output
 
 

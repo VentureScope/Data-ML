@@ -25,6 +25,7 @@ Notes:
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,6 +35,9 @@ from rapidfuzz import fuzz
 
 from Job_pipeline.preprocessing.gemini_key_selector import select_random_gemini_api_key
 from Job_pipeline.preprocessing.semantic_utils import SemanticEncoder
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -79,6 +83,8 @@ class TitleNormalizationModule:
         self._encoder = SemanticEncoder(self.config.embedding_model_name)
         self._role_texts = [self._build_role_text(role) for role in self._roles]
         self._role_embeddings = self._encoder.encode(self._role_texts)
+
+        logger.debug("TitleNormalizationModule initialized roles=%d threshold=%s model=%s", len(self._roles), self.config.threshold, self.config.embedding_model_name)
 
         if not 0.0 <= self.config.threshold <= 1.0:
             raise ValueError("threshold must be between 0.0 and 1.0")
@@ -157,6 +163,7 @@ class TitleNormalizationModule:
                 best_score = score
                 best_role = role.role_name
 
+        logger.debug("_embedding_match best_role=%s best_score=%.4f", best_role, max(best_score, 0.0))
         return best_role, max(best_score, 0.0)
 
     def _build_gemini_prompt(self, title: str, description: str) -> str:
@@ -205,6 +212,7 @@ class TitleNormalizationModule:
 
         api_key = select_random_gemini_api_key()
         if not api_key:
+            logger.debug("No Gemini API key available for fallback")
             return None
 
         try:
@@ -215,9 +223,11 @@ class TitleNormalizationModule:
             response = client.models.generate_content(model=model, contents=prompt)
             text = getattr(response, "text", None)
             if not text:
+                logger.debug("Gemini response had no text")
                 return None
             return str(text).strip()
         except Exception:
+            logger.exception("Gemini call failed")
             return None
 
     def normalize(self, title: Optional[str], description: Optional[str]) -> Dict[str, object]:
@@ -232,11 +242,13 @@ class TitleNormalizationModule:
                 self.config.output_confidence_key: round(score, 4),
                 self.config.output_method_key: self.config.default_method_name,
             }
+            logger.info("Title normalized by embedding: %s score=%.4f", embedding_role, score)
             if self.config.include_similarity_debug:
                 result["similarity_score"] = round(score, 4)
             return result
 
         prompt = self._build_gemini_prompt(safe_title, safe_description)
+        logger.debug("Calling Gemini fallback for title normalization")
         gemini_raw = self._call_gemini(prompt)
         if gemini_raw:
             normalized = self._find_best_role_name(gemini_raw)
@@ -246,6 +258,7 @@ class TitleNormalizationModule:
                     self.config.output_confidence_key: "gemini",
                     self.config.output_method_key: self.config.fallback_method_name,
                 }
+                logger.info("Title normalized by Gemini fallback: %s raw=%s", normalized, gemini_raw)
                 if self.config.include_similarity_debug:
                     result["similarity_score"] = round(score, 4)
                     result["gemini_raw"] = gemini_raw
@@ -257,6 +270,7 @@ class TitleNormalizationModule:
             self.config.output_confidence_key: round(score, 4),
             self.config.output_method_key: f"{self.config.default_method_name}_fallback_unavailable",
         }
+        logger.info("Title normalization falling back to embedding-best with low-score: %s score=%.4f", embedding_role, score)
         if self.config.include_similarity_debug:
             result["similarity_score"] = round(score, 4)
             result["gemini_raw"] = gemini_raw

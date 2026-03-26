@@ -25,12 +25,16 @@ Notes:
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple
 
 from Job_pipeline.preprocessing.gemini_key_selector import select_random_gemini_api_key
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -99,6 +103,7 @@ class JobTypeExtractionModule:
     ):
         self.config = config or JobTypeExtractionConfig()
         self._gemini_callable = gemini_callable
+        logger.debug("JobTypeExtractionModule initialized: %s", self.config)
 
     def _build_text(self, title: Optional[str], description: Optional[str]) -> str:
         return f"{title or ''}\n{description or ''}".strip()
@@ -194,10 +199,12 @@ class JobTypeExtractionModule:
     def extract(self, title: Optional[str], description: Optional[str]) -> Dict[str, object]:
         """Extract job type using rule-first and Gemini fallback."""
         text = self._build_text(title, description)
+        logger.debug("JobTypeExtraction.extract text_len=%d", len(text))
 
         rule = self._rule_extract(text)
         if rule is not None:
             label, confidence = rule
+            logger.info("JobTypeExtraction.rule match label=%s confidence=%s", label, confidence)
             return {
                 self.config.output_label_key: label,
                 self.config.output_confidence_key: confidence,
@@ -205,9 +212,11 @@ class JobTypeExtractionModule:
             }
 
         prompt = self._build_gemini_prompt(text)
+        logger.debug("JobTypeExtraction calling Gemini fallback")
         raw = self._call_gemini(prompt)
         label = self._normalize_gemini_label(raw or "")
         if label is not None:
+            logger.info("JobTypeExtraction.gemini fallback label=%s", label)
             return {
                 self.config.output_label_key: label,
                 self.config.output_confidence_key: self.config.fallback_confidence,

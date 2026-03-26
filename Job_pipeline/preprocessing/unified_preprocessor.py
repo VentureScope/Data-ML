@@ -19,6 +19,7 @@ Pipeline order:
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from typing import Dict, Optional
 
 from Job_pipeline.preprocessing.clean_text import CleanTextModule
@@ -31,6 +32,9 @@ from Job_pipeline.preprocessing.location_extraction import LocationExtractionMod
 from Job_pipeline.preprocessing.remote_detection import RemoteDetectionModule
 from Job_pipeline.preprocessing.skills_extraction import SkillsExtractionModule
 from Job_pipeline.preprocessing.title_normalization import TitleNormalizationModule
+
+
+logger = logging.getLogger(__name__)
 
 
 TARGET_FEATURES = [
@@ -91,6 +95,10 @@ class UnifiedPreprocessor:
         self.job_type_extractor = JobTypeExtractionModule(gemini_callable=gemini_callable)
         self.education_extractor = EducationExtractionModule(gemini_callable=gemini_callable)
         self.skills_extractor = SkillsExtractionModule(gemini_callable=gemini_callable)
+        logger.info(
+            "UnifiedPreprocessor initialized; gemini_fallback_enabled=%s",
+            self.config.enable_gemini_fallback,
+        )
 
     def _build_location_value(self, row: Dict[str, str]) -> str:
         city = (row.get("city") or "").strip()
@@ -102,6 +110,7 @@ class UnifiedPreprocessor:
     def preprocess_row(self, row: Dict[str, str], source_name: Optional[str] = None) -> Dict[str, object]:
         """Preprocess one raw row and return target features only."""
         working = dict(row)
+        logger.debug("preprocess_row start source_name=%s row_keys=%d", source_name, len(working))
         if source_name and not working.get(self.config.source_key):
             working[self.config.source_key] = source_name
         if not working.get(self.config.source_key):
@@ -140,7 +149,7 @@ class UnifiedPreprocessor:
         )
         skills_out = self.skills_extractor.extract(working.get("clean_description"))
 
-        return {
+        output = {
             "year_month": date_out.get("year_month"),
             "timestamp": date_out.get("timestamp"),
             "month": date_out.get("month"),
@@ -157,6 +166,14 @@ class UnifiedPreprocessor:
             "education_level": education_out.get("education_level", "Not specified"),
             "skills": skills_out.get("skills", []),
         }
+        logger.info(
+            "preprocess_row complete source=%s job_id=%s title=%s skills_count=%d",
+            working.get(self.config.source_key),
+            output.get("job_id"),
+            output.get("normalized_title"),
+            len(output.get("skills") or []),
+        )
+        return output
 
 
 __all__ = ["UnifiedPreprocessorConfig", "UnifiedPreprocessor", "TARGET_FEATURES"]

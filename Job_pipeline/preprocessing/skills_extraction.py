@@ -31,6 +31,7 @@ Notes:
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -41,6 +42,9 @@ from rapidfuzz import fuzz
 
 from Job_pipeline.preprocessing.gemini_key_selector import select_random_gemini_api_key
 from Job_pipeline.preprocessing.semantic_utils import SemanticEncoder
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -101,6 +105,13 @@ class SkillsExtractionModule:
             raise ValueError("min_detected_skills must be >= 1")
         if self.config.max_skills < 1:
             raise ValueError("max_skills must be >= 1")
+        logger.debug(
+            "SkillsExtractionModule initialized: skills=%d threshold=%.2f min_detected=%d max_skills=%d",
+            len(self._skills),
+            self.config.similarity_threshold,
+            self.config.min_detected_skills,
+            self.config.max_skills,
+        )
 
     def _resolve_skills_path(self, skills_path: str) -> Path:
         direct = Path(skills_path)
@@ -258,7 +269,9 @@ class SkillsExtractionModule:
     def extract(self, description: Optional[str]) -> Dict[str, object]:
         """Extract skills with embedding first, then Gemini fallback."""
         text = (description or "").strip()
+        logger.debug("SkillsExtraction.extract text_len=%d", len(text))
         if not text:
+            logger.info("SkillsExtraction empty description; returning empty skills")
             return {
                 self.config.output_skills_key: [],
                 self.config.output_count_key: 0,
@@ -271,6 +284,7 @@ class SkillsExtractionModule:
 
         if len(skill_names) >= self.config.min_detected_skills:
             avg_conf = sum(score for _, score in scored) / max(len(scored), 1)
+            logger.info("SkillsExtraction embedding success: count=%d avg_conf=%.4f", len(skill_names), avg_conf)
             return {
                 self.config.output_skills_key: skill_names,
                 self.config.output_count_key: len(skill_names),
@@ -279,6 +293,7 @@ class SkillsExtractionModule:
             }
 
         prompt = self._build_gemini_prompt(text)
+        logger.debug("SkillsExtraction calling Gemini fallback; embedding_count=%d", len(skill_names))
         raw_skills = self._call_gemini(prompt)
         if raw_skills:
             normalized: List[str] = []
@@ -292,6 +307,7 @@ class SkillsExtractionModule:
                     break
 
             if normalized:
+                logger.info("SkillsExtraction Gemini success: count=%d", len(normalized))
                 return {
                     self.config.output_skills_key: normalized,
                     self.config.output_count_key: len(normalized),
@@ -299,6 +315,7 @@ class SkillsExtractionModule:
                     self.config.output_method_key: self.config.fallback_method_name,
                 }
 
+        logger.info("SkillsExtraction fallback unavailable; returning embedding_count=%d", len(skill_names))
         return {
             self.config.output_skills_key: skill_names,
             self.config.output_count_key: len(skill_names),

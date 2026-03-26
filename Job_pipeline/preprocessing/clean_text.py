@@ -29,8 +29,12 @@ from __future__ import annotations
 import html
 import re
 import unicodedata
+import logging
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, Optional
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -88,10 +92,12 @@ class CleanTextModule:
 			re.compile(pattern, flags=re.IGNORECASE)
 			for pattern in self.config.boilerplate_patterns
 		]
+		logger.debug("CleanTextModule initialized: %s", self.config)
 
 	def clean_text(self, text: Optional[str]) -> str:
 		"""Clean a single text input and return normalized text."""
 		value = text or ""
+		logger.debug("clean_text start len=%d", len(value))
 
 		if self.config.normalize_unicode:
 			value = unicodedata.normalize("NFKC", value)
@@ -116,14 +122,21 @@ class CleanTextModule:
 		if self.config.remove_extra_whitespace:
 			value = self._whitespace_re.sub(" ", value).strip()
 
+		logger.debug("clean_text end len=%d", len(value))
 		return value
 
 	def transform(self, title: Optional[str], description: Optional[str]) -> Dict[str, str]:
 		"""Transform title and description into the Step 1 output schema."""
-		return {
+		result = {
 			"clean_title": self.clean_text(title),
 			"clean_description": self.clean_text(description),
 		}
+		logger.info(
+			"Step1.clean_text complete: clean_title_len=%d clean_description_len=%d",
+			len(result["clean_title"]),
+			len(result["clean_description"]),
+		)
+		return result
 
 	def transform_record(
 		self,

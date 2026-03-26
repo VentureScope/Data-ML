@@ -25,12 +25,16 @@ Notes:
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple
 
 from Job_pipeline.preprocessing.gemini_key_selector import select_random_gemini_api_key
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -82,6 +86,7 @@ class RemoteDetectionModule:
     ):
         self.config = config or RemoteDetectionConfig()
         self._gemini_callable = gemini_callable
+        logger.debug("RemoteDetectionModule initialized: %s", self.config)
 
     def _build_text(self, title: Optional[str], description: Optional[str]) -> str:
         return f"{title or ''}\n{description or ''}".strip()
@@ -160,10 +165,12 @@ class RemoteDetectionModule:
     def detect(self, title: Optional[str], description: Optional[str]) -> Dict[str, object]:
         """Detect work mode with rule-first then Gemini fallback."""
         text = self._build_text(title, description)
+        logger.debug("RemoteDetection.detect text_len=%d", len(text))
 
         rule = self._rule_detect(text)
         if rule is not None:
             label, confidence = rule
+            logger.info("RemoteDetection.rule match label=%s confidence=%s", label, confidence)
             return {
                 self.config.output_label_key: label == "remote",
                 self.config.output_mode_key: label,
@@ -172,9 +179,11 @@ class RemoteDetectionModule:
             }
 
         prompt = self._build_gemini_prompt(text)
+        logger.debug("RemoteDetection calling Gemini fallback")
         gemini_raw = self._call_gemini(prompt)
         label = self._normalize_gemini_label(gemini_raw or "")
         if label is not None:
+            logger.info("RemoteDetection.gemini fallback label=%s", label)
             return {
                 self.config.output_label_key: label == "remote",
                 self.config.output_mode_key: label,

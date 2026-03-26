@@ -23,10 +23,14 @@ Notes:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from Job_pipeline.preprocessing.semantic_utils import SemanticEncoder
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -47,15 +51,19 @@ class DescriptionEmbeddingModule:
         self.config = config or DescriptionEmbeddingConfig()
         self._encoder = SemanticEncoder(self.config.model_name)
         self._vector_dim = len(self._encoder.encode_one("dimension_probe").tolist())
+        logger.debug("DescriptionEmbeddingModule initialized model=%s dim=%d", self.config.model_name, self._vector_dim)
 
     def embed_text(self, text: Optional[str]) -> List[float]:
         """Convert one description string to a fixed-size embedding vector."""
         clean = (text or "").strip()
         if not clean:
             # Keep stable output shape even for empty inputs.
+            logger.debug("embed_text called with empty text, returning zero-vector")
             return [0.0] * self._vector_dim
         vector = self._encoder.encode_one(clean)
-        return [float(v) for v in vector.tolist()]
+        vec_list = [float(v) for v in vector.tolist()]
+        logger.info("embed_text produced vector len=%d for text_len=%d", len(vec_list), len(clean))
+        return vec_list
 
     def transform(self, record: Dict[str, str]) -> Dict[str, object]:
         """Return a copy of record with description embedding fields attached."""

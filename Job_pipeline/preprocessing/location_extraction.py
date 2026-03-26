@@ -26,6 +26,7 @@ Notes:
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -33,6 +34,9 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 import spacy
 from Job_pipeline.preprocessing.gemini_key_selector import select_random_gemini_api_key
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -100,6 +104,7 @@ class LocationExtractionModule:
     ):
         self.config = config or LocationExtractionConfig()
         self._gemini_callable = gemini_callable
+        logger.debug("LocationExtractionModule initialized: %s", self.config)
 
     def _blank_result(self) -> Dict[str, Optional[object]]:
         return {
@@ -122,6 +127,7 @@ class LocationExtractionModule:
         for city_key, triple in self._city_to_country.items():
             if city_key in low:
                 city, region, country = triple
+                logger.debug("_parse_location_string matched city: %s -> %s", low, country)
                 return city, region, country, 0.95
 
         for country_key, country_name in self._country_map.items():
@@ -129,6 +135,7 @@ class LocationExtractionModule:
                 parts = [part.strip() for part in text.split(",") if part.strip()]
                 city = parts[0] if len(parts) > 1 else ""
                 region = parts[1] if len(parts) > 2 else ""
+                logger.debug("_parse_location_string matched country: %s -> %s", country_key, country_name)
                 return city, region, country_name, 0.75
 
         # Pattern-based extraction: "based in Addis Ababa, Ethiopia"
@@ -139,9 +146,11 @@ class LocationExtractionModule:
             if len(parsed) == 1:
                 token_low = parsed[0].lower()
                 if token_low in self._country_map:
+                    logger.debug("_parse_location_string phrase resolved to country: %s", token_low)
                     return "", "", self._country_map[token_low], 0.65
                 if token_low in self._city_to_country:
                     city, region, country = self._city_to_country[token_low]
+                    logger.debug("_parse_location_string phrase resolved to city: %s", token_low)
                     return city, region, country, 0.8
                 return parsed[0], "", "", 0.5
 
@@ -163,14 +172,17 @@ class LocationExtractionModule:
             doc = self.__class__._nlp(text)
             gpes = [ent.text.strip() for ent in doc.ents if ent.label_ in {"GPE", "LOC"}]
             if not gpes:
+                logger.debug("_extract_with_ner found no GPE/LOC entities")
                 return None
 
             best = gpes[0]
             low = best.lower()
             if low in self._city_to_country:
                 city, region, country = self._city_to_country[low]
+                logger.debug("_extract_with_ner matched city via NER: %s", low)
                 return city, region, country, 0.72
             if low in self._country_map:
+                logger.debug("_extract_with_ner matched country via NER: %s", low)
                 return "", "", self._country_map[low], 0.7
 
             return best, "", "", 0.6
@@ -211,11 +223,13 @@ class LocationExtractionModule:
                     raw = None
 
         if not raw:
+            logger.debug("Gemini returned empty response for location prompt")
             return None
 
         try:
             payload = json.loads(raw)
             if not isinstance(payload, dict):
+                logger.debug("Gemini returned non-dict payload for location: %s", raw[:200])
                 return None
             return {
                 "city": str(payload.get("city", "") or "").strip(),
