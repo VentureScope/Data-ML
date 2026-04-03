@@ -72,6 +72,7 @@ class SkillProfile:
     skill_name: str
     description: str
     related_skills: Sequence[str]
+    categories: Sequence[str]
 
 
 class SkillsExtractionModule:
@@ -135,11 +136,25 @@ class SkillsExtractionModule:
             skill_name = str(item.get("skill_name", "")).strip()
             if not skill_name:
                 continue
+
+            categories_raw = item.get("categories")
+            categories: List[str] = []
+            if isinstance(categories_raw, list):
+                categories = [str(c).strip() for c in categories_raw if str(c).strip()]
+            elif isinstance(categories_raw, str) and categories_raw.strip():
+                categories = [categories_raw.strip()]
+            else:
+                # Backward compatibility with older taxonomy schema.
+                category_legacy = str(item.get("category", "") or "").strip()
+                if category_legacy:
+                    categories = [category_legacy]
+
             profiles.append(
                 SkillProfile(
                     skill_name=skill_name,
                     description=str(item.get("description", "") or "").strip(),
                     related_skills=[str(s).strip() for s in item.get("related_skills", []) if str(s).strip()],
+                    categories=categories,
                 )
             )
 
@@ -149,7 +164,11 @@ class SkillsExtractionModule:
         return profiles
 
     def _skill_text(self, profile: SkillProfile) -> str:
-        return f"{profile.skill_name} {profile.description} {' '.join(profile.related_skills)}".strip()
+        category_text = " ".join(profile.categories)
+        return (
+            f"{profile.skill_name} {profile.description} "
+            f"{' '.join(profile.related_skills)} {category_text}"
+        ).strip()
 
     def _contains_phrase(self, text: str, phrase: str) -> bool:
         p = (phrase or "").strip().lower()

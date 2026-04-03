@@ -10,21 +10,21 @@
     "role_name": "Backend Developer",
     "category": "Software Development",
     "description": "Backend Developers architect and build the server-side logic, database schemas, and application programming interfaces (APIs) that power web and mobile applications. They focus on data persistence, server security, and business logic implementation, ensuring that the behind-the-scenes infrastructure is optimized for speed, reliability, and stability. They handle complex integrations with third-party services, manage server-side authentication, and coordinate the flow of data between the server, databases, and the frontend user interface via REST, GraphQL, or gRPC protocols.",
-    "common_alternative_titles": ["Backend Engineer", "Server-Side Developer", "API Engineer", "Core Engineer", "Java Developer", "Node.js Developer", "Systems Developer"],
+    "common_alternative_titles": ["Backend Engineer", "Server-Side Developer", "API Engineer", "Core Engineer", "Java Developer", "Node.js Developer", "Systems Developer", "Back End Developer", "Back-end Developer", "Backend API Developer", "Backend Developer (Node.js / NestJS / PostgreSQL)", "Backend Developer - ASP.Net (6) core Web Api"],
     "typical_skills": ["Node.js", "Go", "Python", "SQL", "NoSQL", "Microservices", "Redis", "REST APIs", "gRPC", "Message Queues", "Django"]
   },
   {
     "role_name": "Frontend Developer",
     "category": "Software Development",
     "description": "Frontend Developers specialize in building the client-side of web applications, focusing on the user-facing interface, interactivity, and visual elements. They translate complex design wireframes and UI/UX mockups into functional, performant code while managing application state and ensuring seamless navigation. Their work involves optimizing web performance for low latency, ensuring cross-browser and cross-device compatibility, and implementing responsive design principles to provide a high-quality, accessible user experience.",
-    "common_alternative_titles": ["Frontend Engineer", "UI Developer", "Client-Side Developer", "Web Developer", "React Developer", "JavaScript Developer"],
+    "common_alternative_titles": ["Frontend Engineer", "UI Developer", "Client-Side Developer", "Web Developer", "React Developer", "JavaScript Developer", "Angular Developer", "Angular Frontend Developer", "Frontend Developer (Angular 20 / Ionic 8 / Capacitor)", "Angular Framework Developer", "Angular.js Developer"],
     "typical_skills": ["JavaScript", "TypeScript", "React", "Angular", "Vue.js", "HTML5", "CSS3", "SASS", "Webpack", "Vite", "Web Accessibility (A11y)"]
   },
   {
     "role_name": "Full Stack Developer",
     "category": "Software Development",
     "description": "Full Stack Developers are versatile engineers capable of working across every layer of the technology stack, from frontend user interfaces to backend databases and server configurations. They bridge the gap between user experience and functionality, often handling end-to-end feature development from conception to deployment. They understand how to design scalable APIs and manage data modeling while also implementing intuitive client-side logic and styling, making them essential for high-velocity teams and rapid prototyping.",
-    "common_alternative_titles": ["Full Stack Engineer", "Generalist Developer", "Product Engineer", "Web Engineer", "End-to-End Developer"],
+    "common_alternative_titles": ["Full Stack Engineer", "Generalist Developer", "Product Engineer", "Web Engineer", "End-to-End Developer", "IT full stack - software", "Full Stack Developer (Angular 20 / Ionic 8 / NestJS / PostgreSQL)", ".Net Full Stack Developer", "All-Rounded Software Developer"],
     "typical_skills": ["JavaScript", "React", "Node.js", "Python", "SQL", "Docker", "Cloud Services", "HTML/CSS", "API Design", "Full Stack Frameworks"]
   },
   {
@@ -73,28 +73,28 @@
     "role_name": "Mobile Developer",
     "category": "Software Development",
     "description": "Mobile Developers specialize in building and maintaining high-performance applications for mobile platforms such as iOS and Android. They focus on the unique constraints of mobile devices, including limited battery life, varying screen sizes, and intermittent network connectivity. They implement native or cross-platform features, integrate with device hardware (like GPS, Biometrics, and Cameras), and manage the app store submission process while ensuring smooth UI animations and a highly responsive user experience.",
-    "common_alternative_titles": ["iOS Developer", "Android Developer", "Mobile Engineer", "React Native Developer", "Flutter Developer", "Swift Developer"],
+    "common_alternative_titles": ["iOS Developer", "Android Developer", "Mobile Engineer", "React Native Developer", "Flutter Developer", "Swift Developer", "Flutter developer", "Android App Developer", "Android Application Developer", "Application developer", "App Developer"],
     "typical_skills": ["Swift", "Kotlin", "React Native", "Flutter", "Mobile UI", "Objective-C", "Mobile SDKs", "Xcode", "Android Studio", "API Integration"]
   },
   {
     "role_name": "QA Engineer",
     "category": "Quality Assurance",
     "description": "QA Engineers, or Software Development Engineers in Test (SDET), are responsible for ensuring software quality through the design and execution of automated and manual testing strategies. They build sophisticated test frameworks, write comprehensive test scripts for regression, smoke, and functional testing, and execute performance and load tests. They work closely with developers to identify, document, and track software defects, ensuring that every release meets rigorous functional, security, and performance standards.",
-    "common_alternative_titles": ["SDET", "Automation Test Engineer", "Quality Assurance Analyst", "Software Tester", "Test Engineer"],
+    "common_alternative_titles": ["SDET", "Automation Test Engineer", "Quality Assurance Analyst", "Software Tester", "Test Engineer", "Automation Tester", "Automated Testing Engineer", "Automatic and Manual QA Tester with AWS experience"],
     "typical_skills": ["Selenium", "Cypress", "Python", "Java", "API Testing", "JUnit", "Test Automation Frameworks", "LoadRunner", "Cucumber", "Manual Testing"]
   },
   {
     "role_name": "Product Manager",
     "category": "Product",
     "description": "Product Managers (PMs) define the vision, strategy, and roadmap for a software product based on user needs, market trends, and business goals. They act as the central hub between engineering, design, marketing, and executive stakeholders. PMs prioritize the product backlog, write detailed user stories, and manage the product lifecycle from discovery to launch. They are responsible for ensuring the engineering team builds the features that deliver the most impact, measuring success through user metrics and business growth.",
-    "common_alternative_titles": ["Technical Product Manager", "Product Owner", "Software PM", "Digital Product Manager"],
+    "common_alternative_titles": ["Technical Product Manager", "Product Owner", "Software PM", "Digital Product Manager", "Account Manager / Product Manager", "Technical Account Manager", "Account Manager"],
     "typical_skills": ["Product Strategy", "Agile", "Roadmapping", "Market Analysis", "User Stories", "Stakeholder Management", "Jira", "Product Discovery"]
   },
   {
     "role_name": "UI/UX Designer",
     "category": "Design",
     "description": "UI/UX Designers are responsible for creating intuitive, accessible, and aesthetically pleasing digital interfaces and experiences. They conduct user research to understand behaviors and pain points, create low-fidelity wireframes and high-fidelity interactive prototypes, and design the final visual components of a product. They bridge the gap between user requirements and technical feasibility, ensuring that software is not only functional but also delightful and easy to use across all platforms and devices.",
-    "common_alternative_titles": ["Product Designer", "User Experience Designer", "Interaction Designer", "Visual Designer", "User Interface Designer"],
+    "common_alternative_titles": ["Product Designer", "User Experience Designer", "Interaction Designer", "Visual Designer", "User Interface Designer", "UI&UX", "UI / UX designer", "An experienced UI/UX designer"],
     "typical_skills": ["Figma", "Sketch", "Prototyping", "User Research", "Visual Design", "Design Systems", "Usability Testing", "Adobe XD", "Information Architecture"]
   },
   {
@@ -122,7 +122,7 @@
     "role_name": "AI Engineer",
     "category": "Data/AI",
     "description": "AI Engineers specialize in building intelligent applications using advanced technologies like Natural Language Processing (NLP), Computer Vision, and Large Language Models (LLMs). They focus on integrating AI capabilities into software products, fine-tuning pre-trained foundation models, and implementing Retrieval-Augmented Generation (RAG) patterns. They work at the intersection of software engineering and artificial intelligence to build autonomous agents, chatbots, and intelligent recommendation systems that understand and generate human-like content.",
-    "common_alternative_titles": ["Artificial Intelligence Engineer", "GenAI Engineer", "NLP Specialist", "Deep Learning Engineer", "AI Developer"],
+    "common_alternative_titles": ["Artificial Intelligence Engineer", "GenAI Engineer", "NLP Specialist", "Deep Learning Engineer", "AI Developer", "AI/ML Engineer", "AI Agent Developer", "AI Agents Developer (LLM Integration & Data Handling)", "AI Integration Officer", "AI Content Creator"],
     "typical_skills": ["Python", "Hugging Face", "OpenAI API", "LangChain", "Vector Databases", "NLP", "PyTorch", "Prompt Engineering", "Semantic Search"]
   },
   {
@@ -150,7 +150,7 @@
     "role_name": "Other",
     "category": "General Tech/Miscellaneous",
     "description": "The Other role serves as a catch-all category for technical and specialized tech-adjacent positions that do not fit into the standard software engineering or data-focused taxonomy. This includes niche roles like GIS Specialists, Game Illustrators, Technical Recruiters, CRM Administrators, or hardware-specific technicians. This category is characterized by highly specific domain knowledge that falls outside the mainstream Software Development Life Cycle (SDLC) or standard cloud/data infrastructure paths.",
-    "common_alternative_titles": ["Miscellaneous Tech", "Niche Specialist", "Technical Consultant", "Non-Standard Technical Role"],
+    "common_alternative_titles": ["Miscellaneous Tech", "Niche Specialist", "Technical Consultant", "Non-Standard Technical Role", "Senior Technology Professionals"],
     "typical_skills": ["Domain-Specific Tools", "Consulting", "Cross-Functional Support", "Technical Knowledge"]
   }
 ]
