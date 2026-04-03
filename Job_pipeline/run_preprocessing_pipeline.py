@@ -45,12 +45,13 @@ def process_csv_file(
     output_csv: Path,
     preprocessor: UnifiedPreprocessor,
     max_rows: int | None = None,
-) -> int:
+) -> tuple[int, int]:
     """Process one CSV file and return number of processed rows."""
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     logger.info("Processing file: %s -> %s", input_csv, output_csv)
 
     processed_rows = 0
+    skipped_rows = 0
     source_name = input_csv.stem
 
     with input_csv.open("r", encoding="utf-8", newline="") as f_in, output_csv.open(
@@ -62,6 +63,9 @@ def process_csv_file(
 
         for row in reader:
             out = preprocessor.preprocess_row(row, source_name=source_name)
+            if out is None:
+                skipped_rows += 1
+                continue
             writer.writerow({k: _serialize_value(out.get(k)) for k in TARGET_FEATURES})
             processed_rows += 1
 
@@ -69,8 +73,13 @@ def process_csv_file(
                 logger.info("Row limit reached (%d) for file: %s", max_rows, input_csv.name)
                 break
 
-    logger.info("Finished file: %s rows=%d", input_csv.name, processed_rows)
-    return processed_rows
+    logger.info(
+        "Finished file: %s tech_rows=%d skipped_non_tech=%d",
+        input_csv.name,
+        processed_rows,
+        skipped_rows,
+    )
+    return processed_rows, skipped_rows
 
 
 def list_raw_csv_files(raw_dir: Path) -> List[Path]:
@@ -105,13 +114,16 @@ def run_batch(
     logger.info("Found %d input files", len(files))
     for input_csv in files:
         output_csv = processed_dir / input_csv.name
-        count = process_csv_file(
+        count, skipped = process_csv_file(
             input_csv=input_csv,
             output_csv=output_csv,
             preprocessor=preprocessor,
             max_rows=max_rows,
         )
-        print(f"Processed {count} rows: {input_csv.name} -> {output_csv}")
+        print(
+            f"Processed {count} tech rows (skipped {skipped} non-tech): "
+            f"{input_csv.name} -> {output_csv}"
+        )
     logger.info("run_batch complete")
 
 

@@ -31,6 +31,7 @@ from Job_pipeline.preprocessing.job_type_extraction import JobTypeExtractionModu
 from Job_pipeline.preprocessing.location_extraction import LocationExtractionModule
 from Job_pipeline.preprocessing.remote_detection import RemoteDetectionModule
 from Job_pipeline.preprocessing.skills_extraction import SkillsExtractionModule
+from Job_pipeline.preprocessing.tech_job_validation import TechJobValidationModule
 from Job_pipeline.preprocessing.title_normalization import TitleNormalizationModule
 
 
@@ -79,6 +80,7 @@ class UnifiedPreprocessor:
             gemini_callable = lambda _prompt: None
 
         self.clean_text = CleanTextModule()
+        self.tech_validator = TechJobValidationModule()
         self.job_id = JobIdModule(
             JobIdConfig(
                 title_key=self.config.title_key,
@@ -107,7 +109,9 @@ class UnifiedPreprocessor:
             return f"{city}, {country}"
         return city or country
 
-    def preprocess_row(self, row: Dict[str, str], source_name: Optional[str] = None) -> Dict[str, object]:
+    def preprocess_row(
+        self, row: Dict[str, str], source_name: Optional[str] = None
+    ) -> Optional[Dict[str, object]]:
         """Preprocess one raw row and return target features only."""
         working = dict(row)
         logger.debug("preprocess_row start source_name=%s row_keys=%d", source_name, len(working))
@@ -121,6 +125,20 @@ class UnifiedPreprocessor:
             description=working.get(self.config.description_key),
         )
         working.update(cleaned)
+
+        tech_decision = self.tech_validator.classify(
+            title=working.get("clean_title"),
+            description=working.get("clean_description"),
+        )
+        if not tech_decision.get("is_tech", False):
+            logger.info(
+                "preprocess_row skipped_non_tech source=%s title=%s category=%s score=%s",
+                working.get(self.config.source_key),
+                working.get(self.config.title_key),
+                tech_decision.get("matched_category"),
+                tech_decision.get("confidence_score"),
+            )
+            return None
 
         date_out = self.date_features.transform(working)
         id_out = self.job_id.transform(working)
