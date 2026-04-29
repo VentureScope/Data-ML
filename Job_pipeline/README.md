@@ -3,7 +3,7 @@
 End-to-end preprocessing pipeline for job-post data, from raw CSV rows to structured feature CSVs.
 
 This folder contains:
-- Modular preprocessing components (Step 1 to Step 10)
+- Modular preprocessing components (Step 0 to Step 10)
 - A unified row-level orchestrator
 - A one-command batch runner for all raw files
 - Taxonomy files for roles and skills
@@ -18,6 +18,7 @@ Job_pipeline/
     processed/
     aggregated/
   preprocessing/
+    tech_job_validation.py
     clean_text.py
     job_id.py
     date_features.py
@@ -35,6 +36,7 @@ Job_pipeline/
     roles.json
     skills.json
   tests/
+    test_step0_tech_job_validation.py
     test_step1_clean_text.py
     test_step2_job_id.py
     test_step3_date_features.py
@@ -67,7 +69,17 @@ Job_pipeline/
 - `taxonomy/skills.json`
   - Canonical skill definitions, related skills, and metadata for skill extraction.
 
-## Preprocessing Modules (Step 1 to Step 10)
+## Preprocessing Modules (Step 0 to Step 10)
+
+### 0) `preprocessing/tech_job_validation.py`
+- Purpose: Classify whether a posting is a tech job and filter non-tech rows.
+- Technique:
+  - Title/description keyword and pattern matching
+  - Lightweight classifier with confidence score
+- Output fields / behavior:
+  - `is_tech` (boolean), `matched_category`, `confidence_score`
+  - Non-tech rows are skipped by the unified orchestrator (no downstream processing)
+ - Fallback: none (designed as a fast deterministic filter)
 
 ### 1) `preprocessing/clean_text.py`
 - Purpose: Clean title and description text.
@@ -188,7 +200,7 @@ Job_pipeline/
 - Uses current time (`time.time_ns()`) as random seed to choose a key index.
 
 ### `preprocessing/unified_preprocessor.py`
-- Orchestrates Step 1 through Step 10 for one row.
+- Orchestrates Step 0 through Step 10 for one row.
 - Returns target feature contract only.
 - Includes optional config to enable/disable Gemini fallbacks for batch runs.
 

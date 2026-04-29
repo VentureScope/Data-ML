@@ -5,3 +5,7 @@ sentence-transformers>=3.0.0
 spacy>=3.7.0
 holidays>=0.56
 rapidfuzz>=3.9.0
+requests
+beautifulsoup4
+pandas
+playwright
