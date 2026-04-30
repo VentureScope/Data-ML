@@ -180,8 +180,48 @@ class EducationExtractionModule:
         except Exception:
             return None
 
-    def extract(self, title: Optional[str], description: Optional[str]) -> Dict[str, object]:
-        """Extract education requirement with regex-first and fallback logic."""
+    def _normalize_hint(self, hint: Optional[str]) -> Optional[str]:
+        """Normalize a structured education_qualification hint from JSON sources."""
+        raw = (hint or "").strip()
+        if not raw:
+            return None
+
+        hint_map = {
+            "bachelors_degree": "Bachelors",
+            "bachelor_degree": "Bachelors",
+            "masters_degree": "Masters",
+            "master_degree": "Masters",
+            "phd": "PhD",
+            "doctorate": "PhD",
+            "diploma": "Diploma",
+            "tvet": "Diploma",
+            "certificate": "Diploma",
+            "not_required": None,  # Signal to skip hint — let text extraction try.
+        }
+
+        key = raw.lower().replace("-", "_").replace(" ", "_")
+        if key in hint_map:
+            return hint_map[key]
+
+        # Fallback via Gemini label normalizer.
+        return self._normalize_gemini_label(raw)
+
+    def extract(
+        self, title: Optional[str], description: Optional[str],
+        hint: Optional[str] = None,
+    ) -> Dict[str, object]:
+        """Extract education requirement with hint-first, regex, then fallback."""
+
+        # 0) Structured hint from JSON data source.
+        hint_label = self._normalize_hint(hint)
+        if hint_label is not None:
+            logger.info("EducationExtraction.hint match label=%s raw_hint=%s", hint_label, hint)
+            return {
+                self.config.output_label_key: hint_label,
+                self.config.output_confidence_key: 0.95,
+                self.config.output_method_key: "structured_hint",
+            }
+
         text = self._build_text(title, description)
         logger.debug("EducationExtraction.extract text_len=%d", len(text))
 

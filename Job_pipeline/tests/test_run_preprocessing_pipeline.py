@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from Job_pipeline.run_preprocessing_pipeline import process_csv_file
+from Job_pipeline.run_preprocessing_pipeline import process_file
 
 
 class _StubPreprocessor:
@@ -36,7 +36,7 @@ class _StubPreprocessor:
 
 
 class TestRunPreprocessingPipeline(unittest.TestCase):
-    def test_process_csv_file_skips_non_tech_rows(self) -> None:
+    def test_process_file_skips_non_tech_rows(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             input_csv = Path(tmpdir) / "input.csv"
             output_csv = Path(tmpdir) / "output.csv"
@@ -49,8 +49,8 @@ class TestRunPreprocessingPipeline(unittest.TestCase):
             )
 
             preprocessor = _StubPreprocessor()
-            kept, skipped = process_csv_file(
-                input_csv=input_csv,
+            kept, skipped = process_file(
+                input_file=input_csv,
                 output_csv=output_csv,
                 preprocessor=preprocessor,
             )

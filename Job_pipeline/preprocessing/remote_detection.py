@@ -79,6 +79,15 @@ class RemoteDetectionModule:
         ],
     }
 
+    # Mapping of structured hint values from JSON data sources.
+    _hint_map: Dict[str, str] = {
+        "remote": "remote",
+        "onsite": "onsite",
+        "on-site": "onsite",
+        "on_site": "onsite",
+        "hybrid": "hybrid",
+    }
+
     def __init__(
         self,
         config: Optional[RemoteDetectionConfig] = None,
@@ -162,8 +171,46 @@ class RemoteDetectionModule:
         except Exception:
             return None
 
-    def detect(self, title: Optional[str], description: Optional[str]) -> Dict[str, object]:
-        """Detect work mode with rule-first then Gemini fallback."""
+    def _normalize_hint(self, hint: Optional[str]) -> Optional[str]:
+        """Normalize a structured job_site / work-mode hint from JSON sources."""
+        raw = (hint or "").strip()
+        if not raw:
+            return None
+
+        # Direct lookup (case-insensitive).
+        key = raw.lower().replace("-", "-")  # keep hyphens for "on-site"
+        if key in self._hint_map:
+            return self._hint_map[key]
+
+        # Substring scan for compound strings like "Remote - Contractual"
+        # or "On-site - Permanent (Full-time)".
+        low = raw.lower()
+        if "hybrid" in low:
+            return "hybrid"
+        if "remote" in low:
+            return "remote"
+        if "on-site" in low or "onsite" in low or "on site" in low:
+            return "onsite"
+
+        return None
+
+    def detect(
+        self, title: Optional[str], description: Optional[str],
+        hint: Optional[str] = None,
+    ) -> Dict[str, object]:
+        """Detect work mode with hint-first, rule, then Gemini fallback."""
+
+        # 0) Structured hint from JSON data source.
+        hint_label = self._normalize_hint(hint)
+        if hint_label is not None:
+            logger.info("RemoteDetection.hint match label=%s raw_hint=%s", hint_label, hint)
+            return {
+                self.config.output_label_key: hint_label == "remote",
+                self.config.output_mode_key: hint_label,
+                self.config.output_confidence_key: 0.95,
+                self.config.output_method_key: "structured_hint",
+            }
+
         text = self._build_text(title, description)
         logger.debug("RemoteDetection.detect text_len=%d", len(text))
 

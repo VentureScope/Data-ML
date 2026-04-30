@@ -285,12 +285,51 @@ class SkillsExtractionModule:
             return None
         return parse_list(raw[start : end + 1])
 
-    def extract(self, description: Optional[str]) -> Dict[str, object]:
-        """Extract skills with embedding first, then Gemini fallback."""
+    def _merge_hint_skills(
+        self, extracted: List[str], hint_skills: Optional[List[object]],
+    ) -> List[str]:
+        """Union-merge pre-parsed hint skills with text-extracted skills."""
+        if not hint_skills:
+            return extracted
+
+        seen_lower: Dict[str, str] = {}
+        merged: List[str] = []
+
+        # Extracted skills first (higher confidence, already normalized).
+        for name in extracted:
+            key = name.lower()
+            if key not in seen_lower:
+                seen_lower[key] = name
+                merged.append(name)
+
+        # Then hint skills (normalize via taxonomy, deduplicate).
+        for raw in hint_skills:
+            raw_str = str(raw).strip()
+            if not raw_str:
+                continue
+            canonical = self._normalize_skill_name(raw_str)
+            if canonical:
+                key = canonical.lower()
+                if key not in seen_lower:
+                    seen_lower[key] = canonical
+                    merged.append(canonical)
+
+        return merged[: self.config.max_skills]
+
+    def extract(
+        self, description: Optional[str],
+        hint_skills: Optional[List[object]] = None,
+    ) -> Dict[str, object]:
+        """Extract skills with embedding first, then Gemini fallback.
+
+        If *hint_skills* is provided (e.g. a pre-parsed list from a JSON
+        data source), the hints are normalized and union-merged with the
+        text-extracted skills.
+        """
         text = (description or "").strip()
-        logger.debug("SkillsExtraction.extract text_len=%d", len(text))
-        if not text:
-            logger.info("SkillsExtraction empty description; returning empty skills")
+        logger.debug("SkillsExtraction.extract text_len=%d hint_count=%d", len(text), len(hint_skills or []))
+        if not text and not hint_skills:
+            logger.info("SkillsExtraction empty description and no hints; returning empty skills")
             return {
                 self.config.output_skills_key: [],
                 self.config.output_count_key: 0,
@@ -298,22 +337,29 @@ class SkillsExtractionModule:
                 self.config.output_method_key: f"{self.config.default_method_name}_fallback_unavailable",
             }
 
-        scored = self._embedding_extract(text)
+        scored = self._embedding_extract(text) if text else []
         skill_names = [name for name, _ in scored]
 
         if len(skill_names) >= self.config.min_detected_skills:
+            merged = self._merge_hint_skills(skill_names, hint_skills)
             avg_conf = sum(score for _, score in scored) / max(len(scored), 1)
-            logger.info("SkillsExtraction embedding success: count=%d avg_conf=%.4f", len(skill_names), avg_conf)
+            method = self.config.default_method_name
+            if hint_skills:
+                method = f"{method}+hint"
+            logger.info("SkillsExtraction embedding success: count=%d merged=%d avg_conf=%.4f", len(skill_names), len(merged), avg_conf)
             return {
-                self.config.output_skills_key: skill_names,
-                self.config.output_count_key: len(skill_names),
+                self.config.output_skills_key: merged,
+                self.config.output_count_key: len(merged),
                 self.config.output_confidence_key: round(avg_conf, 4),
-                self.config.output_method_key: self.config.default_method_name,
+                self.config.output_method_key: method,
             }
 
-        prompt = self._build_gemini_prompt(text)
-        logger.debug("SkillsExtraction calling Gemini fallback; embedding_count=%d", len(skill_names))
-        raw_skills = self._call_gemini(prompt)
+        prompt = self._build_gemini_prompt(text) if text else ""
+        if prompt:
+            logger.debug("SkillsExtraction calling Gemini fallback; embedding_count=%d", len(skill_names))
+            raw_skills = self._call_gemini(prompt)
+        else:
+            raw_skills = None
         if raw_skills:
             normalized: List[str] = []
             seen = set()
@@ -326,18 +372,34 @@ class SkillsExtractionModule:
                     break
 
             if normalized:
-                logger.info("SkillsExtraction Gemini success: count=%d", len(normalized))
+                merged = self._merge_hint_skills(normalized, hint_skills)
+                method = self.config.fallback_method_name
+                if hint_skills:
+                    method = f"{method}+hint"
+                logger.info("SkillsExtraction Gemini success: count=%d merged=%d", len(normalized), len(merged))
                 return {
-                    self.config.output_skills_key: normalized,
-                    self.config.output_count_key: len(normalized),
+                    self.config.output_skills_key: merged,
+                    self.config.output_count_key: len(merged),
                     self.config.output_confidence_key: "gemini",
-                    self.config.output_method_key: self.config.fallback_method_name,
+                    self.config.output_method_key: method,
                 }
 
-        logger.info("SkillsExtraction fallback unavailable; returning embedding_count=%d", len(skill_names))
+        # Last resort: merge whatever we have with hints.
+        merged = self._merge_hint_skills(skill_names, hint_skills)
+        if merged and not skill_names:
+            # Only hint skills available, no text extraction.
+            logger.info("SkillsExtraction hint-only: count=%d", len(merged))
+            return {
+                self.config.output_skills_key: merged,
+                self.config.output_count_key: len(merged),
+                self.config.output_confidence_key: 0.85,
+                self.config.output_method_key: "structured_hint",
+            }
+
+        logger.info("SkillsExtraction fallback unavailable; returning merged_count=%d", len(merged))
         return {
-            self.config.output_skills_key: skill_names,
-            self.config.output_count_key: len(skill_names),
+            self.config.output_skills_key: merged,
+            self.config.output_count_key: len(merged),
             self.config.output_confidence_key: round(sum(s for _, s in scored) / max(len(scored), 1), 4)
             if scored
             else 0.0,

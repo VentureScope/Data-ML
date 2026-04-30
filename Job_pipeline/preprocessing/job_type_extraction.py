@@ -96,6 +96,22 @@ class JobTypeExtractionModule:
         ],
     }
 
+    # Mapping of structured hint values from JSON data sources to canonical labels.
+    _hint_map: Dict[str, str] = {
+        # jobs_has_link.json format (uppercase enum style)
+        "full_time": "full_time",
+        "part_time": "part_time",
+        "freelance": "freelance",
+        "contractual": "contractual",
+        "temporary": "temporary",
+        "internship": "internship",
+        "intern": "internship",
+        "contract": "contractual",
+        # no_link_jobs.json embeds job type in compound strings like
+        # "On-site - Permanent (Full-time)" or "Remote - Contractual";
+        # keywords are handled via substring scanning below.
+    }
+
     def __init__(
         self,
         config: Optional[JobTypeExtractionConfig] = None,
@@ -196,8 +212,42 @@ class JobTypeExtractionModule:
         except Exception:
             return None
 
-    def extract(self, title: Optional[str], description: Optional[str]) -> Dict[str, object]:
-        """Extract job type using rule-first and Gemini fallback."""
+    def _normalize_hint(self, hint: Optional[str]) -> Optional[str]:
+        """Normalize a structured job_type hint from JSON data sources."""
+        raw = (hint or "").strip()
+        if not raw:
+            return None
+
+        # Direct lookup (case-insensitive).
+        key = raw.lower().replace("-", "_").replace(" ", "_")
+        if key in self._hint_map:
+            return self._hint_map[key]
+
+        # Substring scan for compound strings like "On-site - Permanent (Full-time)".
+        low = raw.lower()
+        for token, label in self._hint_map.items():
+            if token in low:
+                return label
+
+        # Fall back to the Gemini label normalizer which handles similar patterns.
+        return self._normalize_gemini_label(raw)
+
+    def extract(
+        self, title: Optional[str], description: Optional[str],
+        hint: Optional[str] = None,
+    ) -> Dict[str, object]:
+        """Extract job type using hint-first, rule, then Gemini fallback."""
+
+        # 0) Structured hint from JSON data source.
+        hint_label = self._normalize_hint(hint)
+        if hint_label is not None:
+            logger.info("JobTypeExtraction.hint match label=%s raw_hint=%s", hint_label, hint)
+            return {
+                self.config.output_label_key: hint_label,
+                self.config.output_confidence_key: 0.95,
+                self.config.output_method_key: "structured_hint",
+            }
+
         text = self._build_text(title, description)
         logger.debug("JobTypeExtraction.extract text_len=%d", len(text))
 

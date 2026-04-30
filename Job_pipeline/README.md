@@ -1,6 +1,6 @@
 # Job Pipeline
 
-End-to-end preprocessing pipeline for job-post data, from raw CSV rows to structured feature CSVs.
+End-to-end preprocessing pipeline for job-post data, from raw JSON/CSV rows to structured feature CSVs.
 
 This folder contains:
 - Modular preprocessing components (Step 1 to Step 10)
@@ -14,38 +14,33 @@ This folder contains:
 ```
 Job_pipeline/
   data/
-    raw/
-    processed/
-    aggregated/
+    raw/                              # Input JSON/CSV files
+      jobs_has_link.json              # Afriwork structured jobs
+      no_link_jobs.json               # Telegram channel jobs
+    processed/                        # Output CSVs (ML-ready)
   preprocessing/
-    clean_text.py
-    job_id.py
-    date_features.py
-    title_normalization.py
-    description_embedding.py
-    location_extraction.py
-    remote_detection.py
-    job_type_extraction.py
-    education_extraction.py
-    skills_extraction.py
+    unified_preprocessor.py           # Orchestrator (Steps 0-10)
+    tech_job_validation.py            # Step 0: Tech job filter
+    clean_text.py                     # Step 1
+    job_id.py                         # Step 2
+    date_features.py                  # Step 3
+    title_normalization.py            # Step 4
+    description_embedding.py          # Step 5
+    location_extraction.py            # Step 6
+    remote_detection.py               # Step 7
+    job_type_extraction.py            # Step 8
+    education_extraction.py           # Step 9
+    skills_extraction.py              # Step 10
     semantic_utils.py
     gemini_key_selector.py
-    unified_preprocessor.py
   taxonomy/
     roles.json
     skills.json
   tests/
-    test_step1_clean_text.py
-    test_step2_job_id.py
-    test_step3_date_features.py
-    test_step4_title_normalization.py
-    test_step5_description_embedding.py
-    test_step6_location_extraction.py
-    test_step7_remote_detection.py
-    test_step8_job_type_extraction.py
-    test_step9_education_extraction.py
-    test_step10_skills_extraction.py
+    test_step1_clean_text.py ... test_step10_skills_extraction.py
     test_pipeline_target_features.py
+    test_json_source_compat.py        # Multi-source schema tests
+    test_run_preprocessing_pipeline.py
     test_utils.py
   run_preprocessing_pipeline.py
 ```
@@ -53,12 +48,12 @@ Job_pipeline/
 ## Data Directories
 
 - `data/raw/`
-  - Input CSV files to preprocess.
+  - Input JSON and CSV files to preprocess.
+  - Supports multiple schemas: Afriwork structured JSON (`jobs_has_link.json`), Telegram semi-structured JSON (`no_link_jobs.json`), and legacy Afriwork/Hahu CSV exports.
 - `data/processed/`
   - Output CSV files from the preprocessing run.
-  - Output files keep the same filename as input files.
-- `data/aggregated/`
-  - Reserved for downstream aggregation features (later steps).
+  - All outputs share the same 16-column schema regardless of input format.
+  - Output files keep the same base filename as input files.
 
 ## Taxonomy Files
 
@@ -136,6 +131,7 @@ Job_pipeline/
 ### 7) `preprocessing/remote_detection.py`
 - Purpose: Detect remote/hybrid/onsite mode and boolean remote flag.
 - Technique:
+  - Structured hint resolution (`job_site="REMOTE"`, compound strings like `"On-site - Permanent"`)
   - Keyword scoring rules
 - Output fields:
   - `is_remote`, `remote_mode`, `confidence_score`, `method_used`
@@ -145,6 +141,7 @@ Job_pipeline/
 ### 8) `preprocessing/job_type_extraction.py`
 - Purpose: Extract employment type.
 - Technique:
+  - Structured hint resolution (`job_type="FULL_TIME"`, compound strings like `"Remote - Contractual"`)
   - Keyword/regex classification
   - Supported labels:
     - `full_time`, `part_time`, `internship`, `contractual`, `temporary`, `freelance`
@@ -156,6 +153,7 @@ Job_pipeline/
 ### 9) `preprocessing/education_extraction.py`
 - Purpose: Extract minimum education requirement.
 - Technique:
+  - Structured hint resolution (`education_qualification="BACHELORS_DEGREE"`, `TVET`, `DIPLOMA`, etc.)
   - Regex-first level detection (`PhD`, `Masters`, `Bachelors`, `Diploma`)
 - Output fields:
   - `education_level`, `confidence_score`, `method_used`
@@ -168,6 +166,7 @@ Job_pipeline/
   - Semantic similarity via `sentence-transformers`
   - Mention-aware precision gating
   - Canonical normalization with `rapidfuzz`
+  - Union-merge with pre-parsed `skills` arrays from structured JSON sources
 - Output fields:
   - `skills`, `skills_count`, `confidence_score`, `method_used`
 - Fallback:
@@ -188,16 +187,20 @@ Job_pipeline/
 - Uses current time (`time.time_ns()`) as random seed to choose a key index.
 
 ### `preprocessing/unified_preprocessor.py`
-- Orchestrates Step 1 through Step 10 for one row.
+- Orchestrates Steps 0 through 10 for one row.
+- Handles multi-source schema differences via field alias resolution.
+- Prefers `raw_text` over truncated `description` when available.
+- Passes structured hints (`job_type`, `job_site`, `skills`, `education_qualification`) to downstream modules.
+- Filters non-job rows (polls, announcements) with all-null title/description.
 - Returns target feature contract only.
 - Includes optional config to enable/disable Gemini fallbacks for batch runs.
 
 ## Batch Runner
 
 ### `run_preprocessing_pipeline.py`
-- Iterates over all CSV files in `data/raw/`.
+- Iterates over all JSON and CSV files in `data/raw/`.
 - Applies unified preprocessing row by row.
-- Writes outputs to `data/processed/` with same input filename.
+- Writes outputs to `data/processed/` with same base filename (`.csv` extension).
 
 ## Target Output Features
 
@@ -207,6 +210,7 @@ The processed CSVs are written with this feature schema:
 - `month`
 - `holiday_flag`
 - `job_id`
+- `company_name`
 - `job_title`
 - `normalized_title`
 - `DescriptionVec`
@@ -217,6 +221,8 @@ The processed CSVs are written with this feature schema:
 - `job_type`
 - `education_level`
 - `skills`
+
+All output CSVs share this identical 16-column schema and can be safely concatenated.
 
 ## Dependencies
 
@@ -266,3 +272,5 @@ python -m unittest discover -s Job_pipeline/tests -v
 Coverage includes:
 - Step-by-step module output tests
 - End-to-end target feature contract test
+- Multi-source JSON schema compatibility tests (field aliases, structured hints, `raw_text` fallback)
+- Pipeline runner integration tests

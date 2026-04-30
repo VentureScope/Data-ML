@@ -1,4 +1,9 @@
+temp
 .env
 *.csv
 venv/
 __pycache__/
+
+# Raw data files (too large for GitHub, keep local only)
+Job_pipeline/data/raw/*.json
+Job_pipeline/data/raw/*.csv
