@@ -40,7 +40,7 @@ class JobIdConfig:
     date_key: str = "date"
     source_key: str = "source"
     output_key: str = "job_id"
-    date_granularity: str = "month"  # supported: month, raw
+    date_granularity: str = "raw"  # supported: month, raw
     hash_algorithm: str = "sha256"
     hash_length: int = 16
 

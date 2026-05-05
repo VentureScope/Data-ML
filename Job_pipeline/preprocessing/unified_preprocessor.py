@@ -30,6 +30,7 @@ from Job_pipeline.preprocessing.job_id import JobIdConfig, JobIdModule
 from Job_pipeline.preprocessing.job_type_extraction import JobTypeExtractionModule
 from Job_pipeline.preprocessing.location_extraction import LocationExtractionModule
 from Job_pipeline.preprocessing.remote_detection import RemoteDetectionModule
+from Job_pipeline.preprocessing.gemini_client import RobustGeminiClient
 from Job_pipeline.preprocessing.skills_extraction import SkillsExtractionModule
 from Job_pipeline.preprocessing.tech_job_validation import TechJobValidationModule
 from Job_pipeline.preprocessing.title_normalization import TitleNormalizationModule
@@ -105,7 +106,10 @@ class UnifiedPreprocessor:
         self.config = config or UnifiedPreprocessorConfig()
 
         gemini_callable = None
-        if not self.config.enable_gemini_fallback:
+        if self.config.enable_gemini_fallback:
+            client = RobustGeminiClient()
+            gemini_callable = client
+        else:
             gemini_callable = lambda _prompt: None
 
         self.clean_text = CleanTextModule()

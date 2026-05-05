@@ -13,7 +13,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import List
+from typing import List, Set
 
 
 logger = logging.getLogger(__name__)
@@ -40,15 +40,43 @@ def _serialize_value(value: object) -> str:
     return str(value)
 
 
+def load_progress(progress_file: Path) -> dict:
+    """Load the progress dictionary from file."""
+    if progress_file.exists():
+        try:
+            with open(progress_file, "r") as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            logger.warning("Failed to decode progress.json, starting fresh.")
+            pass
+    return {}
+
+
+def save_progress(progress_file: Path, progress: dict) -> None:
+    """Save the progress dictionary safely."""
+    tmp_file = progress_file.with_suffix(".tmp")
+    with open(tmp_file, "w") as f:
+        json.dump(progress, f, indent=2)
+    tmp_file.replace(progress_file)
+
+
 def process_file(
     input_file: Path,
     output_csv: Path,
     preprocessor: UnifiedPreprocessor,
+    seen_job_ids: Set[str],
+    progress: dict,
+    progress_file: Path,
     max_rows: int | None = None,
 ) -> tuple[int, int]:
     """Process one file (CSV or JSON) and return number of processed rows."""
     output_csv.parent.mkdir(parents=True, exist_ok=True)
-    logger.info("Processing file: %s -> %s", input_file, output_csv)
+    
+    start_idx = progress.get(input_file.name, 0)
+    if start_idx > 0:
+        logger.info("Resuming file: %s from index %d -> %s", input_file, start_idx, output_csv)
+    else:
+        logger.info("Processing file: %s -> %s", input_file, output_csv)
 
     processed_rows = 0
     skipped_rows = 0
@@ -67,21 +95,39 @@ def process_file(
         logger.error("Unsupported file extension: %s", input_file.suffix)
         return 0, 0
 
-    with output_csv.open("w", encoding="utf-8", newline="") as f_out:
-        writer = csv.DictWriter(f_out, fieldnames=TARGET_FEATURES)
-        writer.writeheader()
+    mode = "a" if start_idx > 0 and output_csv.exists() else "w"
 
-        for row in data:
+    with output_csv.open(mode, encoding="utf-8", newline="") as f_out:
+        writer = csv.DictWriter(f_out, fieldnames=TARGET_FEATURES)
+        if mode == "w":
+            writer.writeheader()
+
+        for i, row in enumerate(data[start_idx:]):
+            actual_idx = start_idx + i
             out = preprocessor.preprocess_row(row, source_name=source_name)
-            if out is None:
+            
+            if out is not None:
+                job_id = str(out.get("job_id", ""))
+                if job_id not in seen_job_ids:
+                    seen_job_ids.add(job_id)
+                    writer.writerow({k: _serialize_value(out.get(k)) for k in TARGET_FEATURES})
+                    processed_rows += 1
+                else:
+                    skipped_rows += 1
+            else:
                 skipped_rows += 1
-                continue
-            writer.writerow({k: _serialize_value(out.get(k)) for k in TARGET_FEATURES})
-            processed_rows += 1
+                
+            # Update progress
+            progress[input_file.name] = actual_idx + 1
+            if (actual_idx + 1) % 10 == 0:
+                save_progress(progress_file, progress)
 
             if max_rows is not None and processed_rows >= max_rows:
                 logger.info("Row limit reached (%d) for file: %s", max_rows, input_file.name)
                 break
+
+    # Save final progress for this file
+    save_progress(progress_file, progress)
 
     logger.info(
         "Finished file: %s tech_rows=%d skipped_non_tech=%d",
@@ -123,12 +169,32 @@ def run_batch(
         return
 
     logger.info("Found %d input files", len(files))
+    
+    seen_job_ids: Set[str] = set()
+    for existing_csv in processed_dir.glob("*.csv"):
+        try:
+            with open(existing_csv, "r", encoding="utf-8", newline="") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if row.get("job_id"):
+                        seen_job_ids.add(row["job_id"])
+        except Exception as e:
+            logger.warning("Could not read %s to rebuild seen_job_ids: %s", existing_csv.name, e)
+    
+    logger.info("Restored %d seen job_ids from existing processed files.", len(seen_job_ids))
+
+    progress_file = processed_dir / "progress.json"
+    progress = load_progress(progress_file)
+
     for input_file in files:
         output_csv = processed_dir / f"{input_file.stem}.csv"
         count, skipped = process_file(
             input_file=input_file,
             output_csv=output_csv,
             preprocessor=preprocessor,
+            seen_job_ids=seen_job_ids,
+            progress=progress,
+            progress_file=progress_file,
             max_rows=max_rows,
         )
         print(
