@@ -1,20 +1,46 @@
-"""Groq LLM client with multi-key rotation and exponential backoff.
+"""Groq LLM client with multi-model cascade, key rotation, and proactive rate-limit throttling.
 
-Drop-in replacement for RobustGeminiClient — same __call__(prompt) -> Optional[str] interface.
+Model priority (by RPD):
+  1. llama-3.1-8b-instant     — 14,400 RPD, 6K TPM  (workhorse)
+  2. qwen/qwen3-32b           — 1,000 RPD, 60 RPM, 6K TPM (higher RPM, smarter)
+  3. meta-llama/llama-4-scout-17b-16e-instruct — 1,000 RPD, 30K TPM (large context fallback)
+
+Throttling strategy:
+  - Read x-ratelimit-remaining-requests and x-ratelimit-reset-requests headers
+    on every response to proactively slow down before hitting 429s.
+  - On 429, mark that model exhausted and cascade to the next.
+  - Exponential backoff per model slot.
 """
 from __future__ import annotations
 
 import logging
 import os
-import random
+import re
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from groq import Groq, RateLimitError, APIStatusError
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Model cascade definition
+# ---------------------------------------------------------------------------
+MODEL_CASCADE: List[Tuple[str, int]] = [
+    ("llama-3.1-8b-instant",                        500),   # primary  — 14,400 RPD
+    ("qwen/qwen3-32b",                               500),   # secondary — 60 RPM
+    ("meta-llama/llama-4-scout-17b-16e-instruct",   800),   # tertiary  — 30K TPM
+]
+
+# Warn when remaining requests drop below this fraction of the limit
+_PROACTIVE_THRESHOLD = 0.10   # 10% remaining → start sleeping
+_PROACTIVE_SLEEP = 2.0        # seconds to sleep proactively
+
+
+# ---------------------------------------------------------------------------
+# .env key loader
+# ---------------------------------------------------------------------------
 
 def _parse_key_list(raw: str) -> List[str]:
     text = (raw or "").strip()
@@ -45,18 +71,22 @@ def _read_dotenv(path: Path) -> Dict[str, str]:
 
 def _load_dotenv() -> Dict[str, str]:
     merged: Dict[str, str] = {}
-    cwd = Path.cwd()
     module_dir = Path(__file__).resolve().parent
-    for p in [cwd / ".env", module_dir / ".env", module_dir.parent / ".env", module_dir.parent.parent / ".env"]:
+    for p in [
+        Path.cwd() / ".env",
+        module_dir / ".env",
+        module_dir.parent / ".env",
+        module_dir.parent.parent / ".env",
+    ]:
         merged.update(_read_dotenv(p))
     return merged
 
 
 def get_all_groq_api_keys() -> List[str]:
+    """Collect Groq keys from environment and .env file."""
     keys: List[str] = []
     dotenv = _load_dotenv()
-
-    for src in (os.environ, dotenv):
+    for src in (os.environ, dotenv):  # type: ignore[list-item]
         raw = src.get("GROQ_API_KEYS")
         if raw:
             keys.extend(_parse_key_list(raw))
@@ -78,88 +108,182 @@ def get_all_groq_api_keys() -> List[str]:
     return deduped
 
 
+# ---------------------------------------------------------------------------
+# Rate-limit header parsing
+# ---------------------------------------------------------------------------
+
+def _parse_reset_seconds(reset_str: Optional[str]) -> float:
+    """Parse values like '2s', '1m30s', '500ms' into seconds."""
+    if not reset_str:
+        return 0.0
+    total = 0.0
+    for value, unit in re.findall(r"([\d.]+)(ms|m|s)", reset_str):
+        v = float(value)
+        if unit == "ms":
+            total += v / 1000
+        elif unit == "s":
+            total += v
+        elif unit == "m":
+            total += v * 60
+    return total
+
+
+def _check_headers_proactive(response_headers: dict, model: str) -> None:
+    """Sleep proactively if remaining requests are near the limit."""
+    remaining_str = response_headers.get("x-ratelimit-remaining-requests")
+    limit_str = response_headers.get("x-ratelimit-limit-requests")
+    reset_str = response_headers.get("x-ratelimit-reset-requests")
+
+    if remaining_str is None or limit_str is None:
+        return
+    try:
+        remaining = int(remaining_str)
+        limit = int(limit_str)
+    except ValueError:
+        return
+
+    if limit == 0:
+        return
+
+    fraction_left = remaining / limit
+    if fraction_left < _PROACTIVE_THRESHOLD:
+        reset_secs = _parse_reset_seconds(reset_str)
+        sleep_time = max(_PROACTIVE_SLEEP, min(reset_secs, 30.0))
+        logger.info(
+            "Groq proactive throttle model=%s remaining=%d/%d (%.0f%%) — sleeping %.1fs",
+            model, remaining, limit, fraction_left * 100, sleep_time,
+        )
+        time.sleep(sleep_time)
+
+
+# ---------------------------------------------------------------------------
+# Main client
+# ---------------------------------------------------------------------------
+
 class RobustGroqClient:
-    """Callable LLM client backed by Groq with key rotation and backoff."""
+    """Multi-model cascade Groq client with proactive rate-limit throttling.
 
-    DEFAULT_MODEL = "llama-3.3-70b-versatile"
+    Implements the same ``__call__(prompt) -> Optional[str]`` interface as
+    ``RobustGeminiClient`` so it drops in as the ``gemini_callable`` argument
+    throughout the pipeline.
+    """
 
-    def __init__(self, model: Optional[str] = None):
-        self.model = model or os.environ.get("GROQ_MODEL", self.DEFAULT_MODEL)
+    def __init__(self, cascade: Optional[List[Tuple[str, int]]] = None):
+        self.cascade = cascade or MODEL_CASCADE
         self.keys = get_all_groq_api_keys()
         if not self.keys:
             logger.warning("No Groq API keys found. LLM fallback will fail immediately.")
-        self.key_backoffs: Dict[str, float] = {k: 0.0 for k in self.keys}
-        self.key_failures: Dict[str, int] = {k: 0 for k in self.keys}
 
-    def _get_available_key(self) -> Optional[str]:
-        now = time.time()
-        available = [k for k in self.keys if self.key_backoffs[k] <= now]
-        return random.choice(available) if available else None
+        # Per-(key, model) backoff: value is the epoch time when it becomes available
+        self.backoffs: Dict[Tuple[str, str], float] = {}
+        self.failures: Dict[Tuple[str, str], int] = {}
 
-    def _get_soonest_available_time(self) -> float:
-        return min(self.key_backoffs.values()) if self.keys else time.time()
+    # ------------------------------------------------------------------
+    def _backoff_key(self, key: str, model: str) -> Tuple[str, str]:
+        return (key, model)
 
-    def _mark_failed(self, key: str, status_code: Optional[int] = None):
-        self.key_failures[key] += 1
-        failures = self.key_failures[key]
-        base_delay = 60 if status_code == 429 else 10
+    def _is_available(self, key: str, model: str) -> bool:
+        return self.backoffs.get((key, model), 0.0) <= time.time()
+
+    def _mark_failed(self, key: str, model: str, status_code: Optional[int] = None) -> None:
+        slot = (key, model)
+        self.failures[slot] = self.failures.get(slot, 0) + 1
+        failures = self.failures[slot]
+        base = 60 if status_code == 429 else 10
+        import random
         jitter = random.uniform(0.8, 1.2)
-        delay = min(base_delay * (2 ** min(failures - 1, 5)) * jitter, 600)
-        self.key_backoffs[key] = time.time() + delay
+        delay = min(base * (2 ** min(failures - 1, 5)) * jitter, 600)
+        self.backoffs[slot] = time.time() + delay
         logger.warning(
-            "Groq key ...%s failed (status=%s). Backing off %.2fs (failures=%d)",
-            key[-4:], status_code, delay, failures,
+            "Groq key ...%s / model=%s failed (status=%s). Backoff %.1fs (failures=%d)",
+            key[-4:], model, status_code, delay, failures,
         )
 
-    def _mark_success(self, key: str):
-        self.key_failures[key] = max(0, self.key_failures[key] - 1)
+    def _mark_success(self, key: str, model: str) -> None:
+        slot = (key, model)
+        if slot in self.failures and self.failures[slot] > 0:
+            self.failures[slot] -= 1
 
+    # ------------------------------------------------------------------
     def __call__(self, prompt: str) -> Optional[str]:
         if not self.keys:
             return None
 
-        max_attempts = 10
-        attempt = 0
-        while attempt < max_attempts:
-            key = self._get_available_key()
-            if not key:
-                sleep_time = min(max(0.1, self._get_soonest_available_time() - time.time()), 10.0)
-                logger.info("All Groq keys rate-limited. Sleeping %.2fs...", sleep_time)
-                time.sleep(sleep_time)
-                continue
+        # Try each model in cascade order
+        for model, max_tokens in self.cascade:
+            result = self._try_model(prompt, model, max_tokens)
+            if result is not None:
+                return result
+            # model exhausted / all keys backed off — try next
 
-            attempt += 1
+        logger.error("Groq: all models in cascade exhausted for this prompt.")
+        return None
+
+    def _try_model(self, prompt: str, model: str, max_tokens: int) -> Optional[str]:
+        """Attempt to get a response using a specific model, rotating keys."""
+        import random
+
+        max_attempts = 4
+        for attempt in range(max_attempts):
+            # Pick an available key for this model
+            available = [k for k in self.keys if self._is_available(k, model)]
+            if not available:
+                # All keys for this model are backed off — skip to next model
+                logger.info("Groq model=%s: all keys backed off, cascading.", model)
+                return None
+
+            key = random.choice(available)
             try:
                 client = Groq(api_key=key)
                 response = client.chat.completions.create(
-                    model=self.model,
+                    model=model,
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.0,
-                    max_tokens=512,
+                    max_tokens=max_tokens,
                 )
-                self._mark_success(key)
+                self._mark_success(key, model)
+
+                # Proactive throttle check from response headers
+                headers = getattr(getattr(response, "_raw_response", None), "headers", {})
+                if not headers:
+                    # Try via the httpx response attribute name used by groq SDK
+                    headers = getattr(response, "headers", {})
+                if headers:
+                    _check_headers_proactive(dict(headers), model)
+
                 return (response.choices[0].message.content or "").strip()
 
-            except RateLimitError:
-                logger.info("Groq rate limited (429) on key ...%s", key[-4:])
-                self._mark_failed(key, status_code=429)
+            except RateLimitError as e:
+                logger.info("Groq 429 on key ...%s model=%s", key[-4:], model)
+                # Try to extract reset time from exception headers
+                headers = getattr(getattr(e, "response", None), "headers", {})
+                reset_str = dict(headers).get("x-ratelimit-reset-requests") if headers else None
+                reset_secs = _parse_reset_seconds(reset_str) if reset_str else None
+                self._mark_failed(key, model, status_code=429)
+                if reset_secs and reset_secs < 10:
+                    # Short wait hinted by server — honour it before cascading
+                    logger.info("Server hints reset in %.1fs — waiting.", reset_secs)
+                    time.sleep(reset_secs + 0.5)
+                # cascade to next model immediately
+                return None
 
             except APIStatusError as e:
                 code = e.status_code
                 if code in (500, 502, 503, 504):
-                    logger.warning("Groq server error (%d) on key ...%s", code, key[-4:])
-                    self._mark_failed(key, status_code=code)
+                    logger.warning("Groq server error %d key ...%s model=%s", code, key[-4:], model)
+                    self._mark_failed(key, model, status_code=code)
+                    time.sleep(2)
+                    continue  # retry same model
                 else:
-                    logger.error("Unrecoverable Groq API error: %s", e)
+                    logger.error("Groq unrecoverable error (status=%d): %s", code, e)
                     return None
 
             except Exception as e:
                 err = str(e).lower()
                 if "429" in err or "rate" in err:
-                    self._mark_failed(key, status_code=429)
-                else:
-                    logger.exception("Unexpected Groq error on key ...%s: %s", key[-4:], e)
-                    self._mark_failed(key)
+                    self._mark_failed(key, model, status_code=429)
+                    return None
+                logger.exception("Unexpected Groq error key ...%s model=%s: %s", key[-4:], model, e)
+                self._mark_failed(key, model)
 
-        logger.error("Groq: failed after %d attempts.", max_attempts)
         return None

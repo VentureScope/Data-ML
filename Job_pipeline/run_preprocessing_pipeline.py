@@ -188,7 +188,7 @@ def run_batch(
     progress = load_progress(progress_file)
 
     for input_file in files:
-        output_csv = processed_dir / f"{input_file.stem}.csv"
+        output_csv = processed_dir / f"{input_file.stem}_processed.csv"
         count, skipped = process_file(
             input_file=input_file,
             output_csv=output_csv,
