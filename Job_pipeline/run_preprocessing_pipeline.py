@@ -119,7 +119,8 @@ def process_file(
                 
             # Update progress
             progress[input_file.name] = actual_idx + 1
-            if (actual_idx + 1) % 10 == 0:
+            if (actual_idx + 1) % 50 == 0:
+                f_out.flush()
                 save_progress(progress_file, progress)
 
             if max_rows is not None and processed_rows >= max_rows:
@@ -148,18 +149,18 @@ def run_batch(
     raw_dir: Path,
     processed_dir: Path,
     max_rows: int | None = None,
-    enable_gemini_fallback: bool = False,
+    enable_llm_fallback: bool = False,
 ) -> None:
     """Run preprocessing for all CSV and JSON files in raw_dir."""
     logger.info(
-        "run_batch start raw_dir=%s processed_dir=%s max_rows=%s gemini_fallback=%s",
+        "run_batch start raw_dir=%s processed_dir=%s max_rows=%s llm_fallback=%s",
         raw_dir,
         processed_dir,
         max_rows,
-        enable_gemini_fallback,
+        enable_llm_fallback,
     )
     preprocessor = UnifiedPreprocessor(
-        UnifiedPreprocessorConfig(enable_gemini_fallback=enable_gemini_fallback)
+        UnifiedPreprocessorConfig(enable_llm_fallback=enable_llm_fallback)
     )
     files = list_raw_files(raw_dir)
 
@@ -224,9 +225,9 @@ def parse_args() -> argparse.Namespace:
         help="Optional limit of rows to process per input file.",
     )
     parser.add_argument(
-        "--enable-gemini-fallback",
+        "--enable-llm-fallback",
         action="store_true",
-        help="Enable Gemini fallback calls during batch processing (slower, network-dependent).",
+        help="Enable Groq LLM fallback calls during batch processing (slower, network-dependent).",
     )
     return parser.parse_args()
 
@@ -244,7 +245,7 @@ def main() -> None:
         raw_dir=raw_dir,
         processed_dir=processed_dir,
         max_rows=args.max_rows,
-        enable_gemini_fallback=args.enable_gemini_fallback,
+        enable_llm_fallback=args.enable_llm_fallback,
     )
 
 

@@ -30,7 +30,7 @@ from Job_pipeline.preprocessing.job_id import JobIdConfig, JobIdModule
 from Job_pipeline.preprocessing.job_type_extraction import JobTypeExtractionModule
 from Job_pipeline.preprocessing.location_extraction import LocationExtractionModule
 from Job_pipeline.preprocessing.remote_detection import RemoteDetectionModule
-from Job_pipeline.preprocessing.gemini_client import RobustGeminiClient
+from Job_pipeline.preprocessing.groq_client import RobustGroqClient
 from Job_pipeline.preprocessing.skills_extraction import SkillsExtractionModule
 from Job_pipeline.preprocessing.tech_job_validation import TechJobValidationModule
 from Job_pipeline.preprocessing.title_normalization import TitleNormalizationModule
@@ -96,7 +96,7 @@ class UnifiedPreprocessorConfig:
     description_key: str = "description"
     company_key: str = "entity_name"
     source_key: str = "source"
-    enable_gemini_fallback: bool = False
+    enable_llm_fallback: bool = False
 
 
 class UnifiedPreprocessor:
@@ -106,8 +106,8 @@ class UnifiedPreprocessor:
         self.config = config or UnifiedPreprocessorConfig()
 
         gemini_callable = None
-        if self.config.enable_gemini_fallback:
-            client = RobustGeminiClient()
+        if self.config.enable_llm_fallback:
+            client = RobustGroqClient()
             gemini_callable = client
         else:
             gemini_callable = lambda _prompt: None
@@ -131,8 +131,8 @@ class UnifiedPreprocessor:
         self.education_extractor = EducationExtractionModule(gemini_callable=gemini_callable)
         self.skills_extractor = SkillsExtractionModule(gemini_callable=gemini_callable)
         logger.info(
-            "UnifiedPreprocessor initialized; gemini_fallback_enabled=%s",
-            self.config.enable_gemini_fallback,
+            "UnifiedPreprocessor initialized; llm_fallback_enabled=%s",
+            self.config.enable_llm_fallback,
         )
 
     def _build_location_value(self, row: Dict[str, object]) -> str:
