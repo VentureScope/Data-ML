@@ -49,9 +49,13 @@ class TestRunPreprocessingPipeline(unittest.TestCase):
             )
 
             preprocessor = _StubPreprocessor()
+            progress_file = Path(tmpdir) / "progress.json"
             kept, skipped = process_file(
                 input_file=input_csv,
-                output_csv=output_csv,
+                output_csv=output_csv, 
+                seen_job_ids=set(),
+                progress={},
+                progress_file=progress_file,
                 preprocessor=preprocessor,
             )
 

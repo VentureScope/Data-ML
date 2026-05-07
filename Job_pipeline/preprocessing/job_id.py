@@ -5,7 +5,8 @@ Purpose:
 
 Pipeline behavior:
 1. Normalize text fields (title/company/source)
-2. Convert date to month granularity by default (YYYY-MM)
+2. Preserve raw date string by default; set date_granularity="month" to
+   truncate to YYYY-MM (reduces precision but groups same-month duplicates)
 3. Build canonical signature: title|company|date|source
 4. Hash signature (sha256 by default) and truncate to configured length
 
@@ -40,7 +41,7 @@ class JobIdConfig:
     date_key: str = "date"
     source_key: str = "source"
     output_key: str = "job_id"
-    date_granularity: str = "month"  # supported: month, raw
+    date_granularity: str = "raw"  # supported: month, raw
     hash_algorithm: str = "sha256"
     hash_length: int = 16
 

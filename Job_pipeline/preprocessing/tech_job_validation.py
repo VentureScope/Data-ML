@@ -7,6 +7,7 @@ before running downstream preprocessing modules.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Sequence
@@ -71,33 +72,48 @@ class TechJobValidationModule:
 
         return roles
 
+    def _normalize_text(self, text: str) -> str:
+        text = re.sub(r'[\W_]+', ' ', (text or "").lower())
+        text = text.replace("front end", "frontend")
+        text = text.replace("back end", "backend")
+        text = text.replace("full stack", "fullstack")
+        text = text.replace("ui ux", "uiux")
+        text = text.replace("ui and ux", "uiux")
+        text = text.replace("dev ops", "devops")
+        return f" {text.strip()} "
+
     def _build_keywords(self, roles: Sequence[_RoleProfile]) -> List[str]:
         terms: set[str] = set()
         for role in roles:
-            terms.add(role.role_name.lower())
+            terms.add(self._normalize_text(role.role_name))
             for alias in role.aliases:
-                terms.add(alias.lower())
+                terms.add(self._normalize_text(alias))
+        
+        # Filter out overly generic words or empty strings
+        ignore_list = {" other ", " "}
+        terms = {t for t in terms if t not in ignore_list}
+        
         return sorted(terms, key=len, reverse=True)
 
     def _count_matches(self, text: str) -> int:
-        hay = (text or "").lower()
-        if not hay:
+        hay = self._normalize_text(text)
+        if not hay.strip():
             return 0
-        return sum(1 for keyword in self._keywords if keyword and keyword in hay)
+        return sum(1 for keyword in self._keywords if keyword in hay)
 
     def _best_role(self, text: str) -> _RoleProfile:
-        hay = (text or "").lower()
+        hay = self._normalize_text(text)
 
         best = self._roles[0]
         best_score = -1
         for role in self._roles:
             score = 0
-            role_name = role.role_name.lower()
+            role_name = self._normalize_text(role.role_name)
             if role_name and role_name in hay:
                 score += 2
             for alias in role.aliases:
-                alias_lower = alias.lower()
-                if alias_lower and alias_lower in hay:
+                alias_norm = self._normalize_text(alias)
+                if alias_norm and alias_norm in hay:
                     score += 1
 
             if score > best_score:
