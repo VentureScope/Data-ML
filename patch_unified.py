@@ -1,28 +1,17 @@
-import re
+"""
+Retired one-off patch script.
 
-with open("Job_pipeline/preprocessing/unified_preprocessor.py", "r") as f:
-    content = f.read()
+This file previously rewrote `Job_pipeline/preprocessing/unified_preprocessor.py`
+in place to apply a Gemini fallback migration. That behavior was brittle,
+non-idempotent, and dangerous because it modified repository source files based
+on exact string matches and executed at import time.
 
-# Add import
-if "from Job_pipeline.preprocessing.gemini_client import RobustGeminiClient" not in content:
-    content = content.replace(
-        "from Job_pipeline.preprocessing.remote_detection import RemoteDetectionModule",
-        "from Job_pipeline.preprocessing.remote_detection import RemoteDetectionModule\nfrom Job_pipeline.preprocessing.gemini_client import RobustGeminiClient"
+The patch is intentionally disabled and retained only as a historical marker.
+If a future migration is needed, implement it as explicit internal tooling with
+clear documentation, versioning, and a non-default execution path.
+"""
+
+if __name__ == "__main__":
+    raise SystemExit(
+        "patch_unified.py has been retired and no longer rewrites source files."
     )
-
-# Change gemini_callable initialization
-old_init = """        gemini_callable = None
-        if not self.config.enable_gemini_fallback:
-            gemini_callable = lambda _prompt: None"""
-
-new_init = """        gemini_callable = None
-        if self.config.enable_gemini_fallback:
-            client = RobustGeminiClient()
-            gemini_callable = client
-        else:
-            gemini_callable = lambda _prompt: None"""
-
-content = content.replace(old_init, new_init)
-
-with open("Job_pipeline/preprocessing/unified_preprocessor.py", "w") as f:
-    f.write(content)
