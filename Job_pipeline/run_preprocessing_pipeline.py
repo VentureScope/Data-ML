@@ -74,6 +74,31 @@ def process_file(
     
     start_idx = progress.get(input_file.name, 0)
     if start_idx > 0:
+        # Validate that the output CSV actually exists and has data rows.
+        # If it is missing or empty the previous output was lost (deleted,
+        # partial checkout, interrupted before first flush, etc.) — resuming
+        # from start_idx would silently skip those rows forever.
+        output_row_count = 0
+        if output_csv.exists():
+            try:
+                with output_csv.open("r", encoding="utf-8", newline="") as _f:
+                    output_row_count = sum(1 for _ in _f) - 1  # subtract header
+            except Exception:
+                output_row_count = 0
+
+        if not output_csv.exists() or output_row_count <= 0:
+            logger.warning(
+                "progress.json says resume from index %d for %s, but output CSV "
+                "'%s' is missing or empty. Resetting to index 0 to avoid silent "
+                "data loss.",
+                start_idx,
+                input_file.name,
+                output_csv,
+            )
+            start_idx = 0
+            progress[input_file.name] = 0
+
+    if start_idx > 0:
         logger.info("Resuming file: %s from index %d -> %s", input_file, start_idx, output_csv)
     else:
         logger.info("Processing file: %s -> %s", input_file, output_csv)
