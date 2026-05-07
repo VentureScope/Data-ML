@@ -287,3 +287,156 @@ class RobustGroqClient:
                 self._mark_failed(key, model)
 
         return None
+
+
+# ---------------------------------------------------------------------------
+# Batched callable wrapper
+# ---------------------------------------------------------------------------
+
+_BATCH_SYSTEM_PROMPT = """You are a data extraction assistant for job postings.
+Extract the requested fields and return ONLY valid JSON. No explanation, no markdown."""
+
+_BATCH_USER_TEMPLATE = """From this job posting extract all fields below and return as a single JSON object:
+
+{{
+  "city": "city name or empty string",
+  "region": "region/state/province or empty string",
+  "country": "country name or empty string",
+  "is_remote": "remote | hybrid | onsite",
+  "job_type": "full_time | part_time | internship | contractual | temporary | freelance",
+  "education": "PhD | Masters | Bachelors | Diploma | Not specified",
+  "skills": ["Skill1", "Skill2"]
+}}
+
+Job posting:
+{text}"""
+
+# Keywords used to detect which field a module prompt is asking about
+_FIELD_SIGNALS: List[Tuple[str, str]] = [
+    ("city",       "location"),
+    ("region",     "location"),
+    ("country",    "location"),
+    ("remote",     "is_remote"),
+    ("hybrid",     "is_remote"),
+    ("onsite",     "is_remote"),
+    ("job type",   "job_type"),
+    ("full_time",  "job_type"),
+    ("full-time",  "job_type"),
+    ("internship", "job_type"),
+    ("education",  "education"),
+    ("bachelors",  "education"),
+    ("masters",    "education"),
+    ("skills",     "skills"),
+    ("key skills", "skills"),
+]
+
+
+def _detect_field(prompt: str) -> Optional[str]:
+    """Guess which field a module prompt is targeting."""
+    lower = prompt.lower()
+    for signal, field in _FIELD_SIGNALS:
+        if signal in lower:
+            return field
+    return None
+
+
+def _extract_job_text(prompt: str) -> str:
+    """Pull the job description text out of a module prompt."""
+    # All module prompts end with 'Job description:\n<text>' or 'Job posting:\n<text>'
+    for marker in ("job description:\n", "job posting:\n"):
+        idx = prompt.lower().find(marker)
+        if idx != -1:
+            return prompt[idx + len(marker):].strip()
+    # Fallback: last 2/3 of the prompt is likely the text
+    return prompt[len(prompt) // 3:].strip()
+
+
+class BatchedGroqCallable:
+    """Wraps RobustGroqClient to consolidate up to 5 per-module LLM calls into one.
+
+    Usage
+    -----
+    Replace the per-row ``gemini_callable`` with a fresh ``BatchedGroqCallable``
+    instance before processing each row::
+
+        batcher = BatchedGroqCallable(groq_client)
+        # pass batcher as gemini_callable to all modules
+        result = preprocessor.preprocess_row(row, llm_callable=batcher)
+
+    Or, when modules share the same callable reference (current impl), just
+    create one batcher per row and pass it in. The batcher fires a single
+    consolidated request on the FIRST call and serves the remaining calls from
+    cache.
+    """
+
+    def __init__(self, client: RobustGroqClient):
+        self._client = client
+        self._cache: Optional[Dict[str, object]] = None  # populated on first call
+        self._raw_text: Optional[str] = None            # job text extracted from first prompt
+        self._exhausted: bool = False                   # True if consolidated call failed
+
+    # ------------------------------------------------------------------
+    def _fire_consolidated(self, job_text: str) -> Optional[Dict[str, object]]:
+        prompt = _BATCH_USER_TEMPLATE.format(text=job_text)
+        # Prepend system prompt as a user-turn prefix (some models ignore system role)
+        full_prompt = f"{_BATCH_SYSTEM_PROMPT}\n\n{prompt}"
+        raw = self._client(full_prompt)
+        if not raw:
+            return None
+        # Strip markdown fences if any
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            lines = cleaned.splitlines()
+            cleaned = "\n".join(
+                l for l in lines if not l.strip().startswith("```")
+            ).strip()
+        try:
+            import json as _json
+            return _json.loads(cleaned)
+        except Exception:
+            logger.warning("BatchedGroqCallable: failed to parse consolidated JSON: %r", cleaned[:200])
+            return None
+
+    # ------------------------------------------------------------------
+    def __call__(self, prompt: str) -> Optional[str]:
+        field = _detect_field(prompt)
+
+        # On first call, extract job text and fire the consolidated request
+        if self._cache is None and not self._exhausted:
+            job_text = _extract_job_text(prompt)
+            self._raw_text = job_text
+            result = self._fire_consolidated(job_text)
+            if result is not None:
+                self._cache = result
+            else:
+                self._exhausted = True
+
+        # If consolidated call failed, fall through to the individual client
+        if self._exhausted or self._cache is None:
+            return self._client(prompt)
+
+        # Serve from cache based on which field this module wants
+        cache = self._cache
+        if field == "location":
+            import json as _json
+            return _json.dumps({
+                "city":    cache.get("city", ""),
+                "region":  cache.get("region", ""),
+                "country": cache.get("country", ""),
+            })
+        elif field == "is_remote":
+            return str(cache.get("is_remote", ""))
+        elif field == "job_type":
+            return str(cache.get("job_type", ""))
+        elif field == "education":
+            return str(cache.get("education", ""))
+        elif field == "skills":
+            skills = cache.get("skills", [])
+            if isinstance(skills, list):
+                import json as _json
+                return _json.dumps(skills)
+            return str(skills)
+        else:
+            # Unknown field — fall back to individual call
+            logger.debug("BatchedGroqCallable: unknown field for prompt, falling back to individual call")
+            return self._client(prompt)

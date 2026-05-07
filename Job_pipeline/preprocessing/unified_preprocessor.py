@@ -30,7 +30,7 @@ from Job_pipeline.preprocessing.job_id import JobIdConfig, JobIdModule
 from Job_pipeline.preprocessing.job_type_extraction import JobTypeExtractionModule
 from Job_pipeline.preprocessing.location_extraction import LocationExtractionModule
 from Job_pipeline.preprocessing.remote_detection import RemoteDetectionModule
-from Job_pipeline.preprocessing.groq_client import RobustGroqClient
+from Job_pipeline.preprocessing.groq_client import RobustGroqClient, BatchedGroqCallable
 from Job_pipeline.preprocessing.skills_extraction import SkillsExtractionModule
 from Job_pipeline.preprocessing.tech_job_validation import TechJobValidationModule
 from Job_pipeline.preprocessing.title_normalization import TitleNormalizationModule
@@ -105,12 +105,11 @@ class UnifiedPreprocessor:
     def __init__(self, config: Optional[UnifiedPreprocessorConfig] = None):
         self.config = config or UnifiedPreprocessorConfig()
 
-        gemini_callable = None
+        self._groq_client: Optional[RobustGroqClient] = None
         if self.config.enable_llm_fallback:
-            client = RobustGroqClient()
-            gemini_callable = client
-        else:
-            gemini_callable = lambda _prompt: None
+            self._groq_client = RobustGroqClient()
+
+        _noop = lambda _prompt: None
 
         self.clean_text = CleanTextModule()
         self.tech_validator = TechJobValidationModule()
@@ -123,13 +122,13 @@ class UnifiedPreprocessor:
             )
         )
         self.date_features = DateFeaturesModule(DateFeaturesConfig(date_key=self.config.date_key))
-        self.title_normalizer = TitleNormalizationModule(gemini_callable=gemini_callable)
+        self.title_normalizer = TitleNormalizationModule(gemini_callable=_noop)
         self.description_embedding = DescriptionEmbeddingModule()
-        self.location_extractor = LocationExtractionModule(gemini_callable=gemini_callable)
-        self.remote_detector = RemoteDetectionModule(gemini_callable=gemini_callable)
-        self.job_type_extractor = JobTypeExtractionModule(gemini_callable=gemini_callable)
-        self.education_extractor = EducationExtractionModule(gemini_callable=gemini_callable)
-        self.skills_extractor = SkillsExtractionModule(gemini_callable=gemini_callable)
+        self.location_extractor = LocationExtractionModule(gemini_callable=_noop)
+        self.remote_detector = RemoteDetectionModule(gemini_callable=_noop)
+        self.job_type_extractor = JobTypeExtractionModule(gemini_callable=_noop)
+        self.education_extractor = EducationExtractionModule(gemini_callable=_noop)
+        self.skills_extractor = SkillsExtractionModule(gemini_callable=_noop)
         logger.info(
             "UnifiedPreprocessor initialized; llm_fallback_enabled=%s",
             self.config.enable_llm_fallback,
@@ -246,6 +245,20 @@ class UnifiedPreprocessor:
         eh = working.get("education_hint")
         if isinstance(eh, str) and eh.strip():
             education_hint = eh.strip()
+
+        # --- Inject a fresh per-row batched callable if LLM fallback is on ---
+        if self._groq_client is not None:
+            batcher = BatchedGroqCallable(self._groq_client)
+            # All modules share the same batcher — first call fires one
+            # consolidated API request; subsequent calls are served from cache.
+            self.location_extractor._gemini_callable = batcher
+            self.remote_detector._gemini_callable = batcher
+            self.job_type_extractor._gemini_callable = batcher
+            self.education_extractor._gemini_callable = batcher
+            self.skills_extractor._gemini_callable = batcher
+            # title_normalizer uses a different prompt shape; give it a
+            # separate direct client so it doesn't interfere with the cache.
+            self.title_normalizer._gemini_callable = self._groq_client
 
         # --- Run pipeline steps ---
         date_out = self.date_features.transform(working)
