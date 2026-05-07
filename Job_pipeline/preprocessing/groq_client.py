@@ -20,9 +20,16 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from groq import Groq, RateLimitError, APIStatusError
-
 logger = logging.getLogger(__name__)
+
+try:
+    from groq import Groq, RateLimitError, APIStatusError
+    _groq_available = True
+except ImportError:  # pragma: no cover
+    _groq_available = False
+    Groq = None  # type: ignore[assignment,misc]
+    RateLimitError = Exception  # type: ignore[assignment,misc]
+    APIStatusError = Exception  # type: ignore[assignment,misc]
 
 # ---------------------------------------------------------------------------
 # Model cascade definition
@@ -169,6 +176,11 @@ class RobustGroqClient:
     """
 
     def __init__(self, cascade: Optional[List[Tuple[str, int]]] = None):
+        if not _groq_available:
+            logger.warning(
+                "'groq' package not installed — LLM fallback disabled. "
+                "Run: pip install groq>=1.0.0"
+            )
         self.cascade = cascade or MODEL_CASCADE
         self.keys = get_all_groq_api_keys()
         if not self.keys:
@@ -206,6 +218,11 @@ class RobustGroqClient:
 
     # ------------------------------------------------------------------
     def __call__(self, prompt: str) -> Optional[str]:
+        if not _groq_available:
+            raise ImportError(
+                "The 'groq' package is required for LLM fallback. "
+                "Install it with: pip install groq>=1.0.0"
+            )
         if not self.keys:
             return None
 
