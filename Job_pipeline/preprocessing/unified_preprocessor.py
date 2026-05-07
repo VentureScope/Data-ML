@@ -30,7 +30,8 @@ from Job_pipeline.preprocessing.job_id import JobIdConfig, JobIdModule
 from Job_pipeline.preprocessing.job_type_extraction import JobTypeExtractionModule
 from Job_pipeline.preprocessing.location_extraction import LocationExtractionModule
 from Job_pipeline.preprocessing.remote_detection import RemoteDetectionModule
-from Job_pipeline.preprocessing.groq_client import RobustGroqClient, BatchedGroqCallable
+# groq_client is optional — imported lazily inside __init__ so the pipeline
+# runs without the groq package when LLM fallback is disabled.
 from Job_pipeline.preprocessing.skills_extraction import SkillsExtractionModule
 from Job_pipeline.preprocessing.tech_job_validation import TechJobValidationModule
 from Job_pipeline.preprocessing.title_normalization import TitleNormalizationModule
@@ -105,8 +106,15 @@ class UnifiedPreprocessor:
     def __init__(self, config: Optional[UnifiedPreprocessorConfig] = None):
         self.config = config or UnifiedPreprocessorConfig()
 
-        self._groq_client: Optional[RobustGroqClient] = None
+        self._groq_client = None
         if self.config.enable_llm_fallback:
+            try:
+                from Job_pipeline.preprocessing.groq_client import RobustGroqClient  # noqa: PLC0415
+            except ImportError as exc:
+                raise ImportError(
+                    "'groq' package is required when enable_llm_fallback=True. "
+                    "Install it with: pip install groq>=1.0.0"
+                ) from exc
             self._groq_client = RobustGroqClient()
 
         _noop = lambda _prompt: None
@@ -248,6 +256,7 @@ class UnifiedPreprocessor:
 
         # --- Inject a fresh per-row batched callable if LLM fallback is on ---
         if self._groq_client is not None:
+            from Job_pipeline.preprocessing.groq_client import BatchedGroqCallable  # noqa: PLC0415
             batcher = BatchedGroqCallable(self._groq_client)
             # All modules share the same batcher — first call fires one
             # consolidated API request; subsequent calls are served from cache.
